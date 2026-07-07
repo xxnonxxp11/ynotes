@@ -17,10 +17,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,7 +34,7 @@ import com.example.ynotes.ui.theme.YNotesTheme
 import java.util.UUID
 
 data class Note(
-    val id: String = UUID.randomUUID().toString(),
+    val id: String,
     val title: String,
     val body: String
 )
@@ -74,40 +72,40 @@ fun NotesApp() {
                 notes = notes,
                 onAddNote = { currentScreen = Screen.Editor(note = null) },
                 onNoteClick = { note -> currentScreen = Screen.Editor(note = note) },
-                onOpenSettings = { currentScreen = Screen.Settings }
+                onSettingsClick = { currentScreen = Screen.Settings }
+            )
+        }
+        is Screen.Settings -> {
+            SettingsScreen(
+                onNavigateBack = { currentScreen = Screen.Home }
             )
         }
         is Screen.Editor -> {
             EditorScreen(
                 editingNote = screen.note,
-                onCommit = { title, body ->
-                    val existing = screen.note
-                    if (existing != null) {
-                        val idx = notes.indexOfFirst { it.id == existing.id }
-                        if (idx >= 0 && (title.isNotBlank() || body.isNotBlank())) {
-                            notes[idx] = existing.copy(title = title, body = body)
+                onSave = { id, title, body ->
+                    val idx = notes.indexOfFirst { it.id == id }
+                    if (idx >= 0) {
+                        if (title.isNotBlank() || body.isNotBlank()) {
+                            notes[idx] = notes[idx].copy(title = title, body = body)
+                        } else {
+                            // Si borraron todo el texto de una nota existente, se elimina
+                            notes.removeAt(idx)
                         }
                     } else {
                         if (title.isNotBlank() || body.isNotBlank()) {
-                            notes.add(Note(title = title, body = body))
+                            notes.add(Note(id = id, title = title, body = body))
                         }
                     }
-                    currentScreen = Screen.Home
                 },
-                onDelete = { noteToDelete ->
-                    notes.removeIf { it.id == noteToDelete.id }
-                    currentScreen = Screen.Home
+                onDelete = { idToDelete ->
+                    notes.removeIf { it.id == idToDelete }
                 },
                 onNavigateBack = { currentScreen = Screen.Home }
             )
         }
-        is Screen.Settings -> {
-            SettingsScreen(onNavigateBack = { currentScreen = Screen.Home })
-        }
     }
 }
-
-// ─── Home ──────────────────────────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -115,14 +113,16 @@ fun HomeScreen(
     notes: List<Note>,
     onAddNote: () -> Unit,
     onNoteClick: (Note) -> Unit,
-    onOpenSettings: () -> Unit
+    onSettingsClick: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
-    val filteredNotes = if (searchQuery.isBlank()) notes
-    else notes.filter {
-        it.title.contains(searchQuery, ignoreCase = true) ||
-                it.body.contains(searchQuery, ignoreCase = true)
+    val filteredNotes = remember(notes, searchQuery) {
+        if (searchQuery.isBlank()) notes
+        else notes.filter {
+            it.title.contains(searchQuery, ignoreCase = true) ||
+            it.body.contains(searchQuery, ignoreCase = true)
+        }
     }
 
     Scaffold(
@@ -150,12 +150,17 @@ fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
-                    modifier = Modifier.weight(1f).height(52.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp),
                     shape = RoundedCornerShape(50.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    tonalElevation = 0.dp
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
@@ -187,13 +192,17 @@ fun HomeScreen(
                         }
                     }
                 }
+
                 Spacer(modifier = Modifier.width(10.dp))
+
+                // Settings circular button
                 Surface(
                     modifier = Modifier.size(52.dp),
                     shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceVariant
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    tonalElevation = 0.dp
                 ) {
-                    IconButton(onClick = onOpenSettings) {
+                    IconButton(onClick = onSettingsClick) {
                         Icon(
                             imageVector = Icons.Default.Settings,
                             contentDescription = "Configuración",
@@ -203,19 +212,23 @@ fun HomeScreen(
                 }
             }
 
+            // App title
             Text(
                 text = "yNotes",
                 style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
             )
+
             Spacer(modifier = Modifier.height(8.dp))
 
             if (filteredNotes.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = if (searchQuery.isBlank()) "Todavía no hay notas. ¡Añade una!"
-                        else "Sin resultados para \"$searchQuery\"",
+                        text = if (searchQuery.isBlank()) "Todavía no hay notas. ¡Añade una!" else "Sin resultados para \"$searchQuery\"",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                     )
@@ -237,14 +250,17 @@ fun HomeScreen(
     }
 }
 
-// ─── Note Card ────────────────────────────────────────────────────────────────────
-
 @Composable
 fun NoteCard(note: Note, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).clickable { onClick() },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .clickable { onClick() },
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -271,29 +287,34 @@ fun NoteCard(note: Note, onClick: () -> Unit) {
     }
 }
 
-// ─── Editor ───────────────────────────────────────────────────────────────────────────
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditorScreen(
     editingNote: Note?,
-    onCommit: (title: String, body: String) -> Unit,
-    onDelete: (Note) -> Unit,
+    onSave: (id: String, title: String, body: String) -> Unit,
+    onDelete: (id: String) -> Unit,
     onNavigateBack: () -> Unit
 ) {
+    // Generamos el ID único al momento de abrir la pantalla.
+    // Garantiza que la nota siempre tenga identidad, evitando duplicados.
+    val currentNoteId = remember { editingNote?.id ?: UUID.randomUUID().toString() }
+    
     var titleText by remember { mutableStateOf(editingNote?.title ?: "") }
     var bodyText by remember { mutableStateOf(editingNote?.body ?: "") }
-    val alreadySaved = remember { mutableStateOf(false) }
+    var isDeleted by remember { mutableStateOf(false) }
 
-    fun save() {
-        if (!alreadySaved.value) {
-            alreadySaved.value = true
-            onCommit(titleText.trim(), bodyText.trim())
+    // Auto-save: solo se llama la orden de guardar al salir de la vista.
+    DisposableEffect(Unit) {
+        onDispose {
+            if (!isDeleted) {
+                onSave(currentNoteId, titleText.trim(), bodyText.trim())
+            }
         }
     }
 
-    DisposableEffect(Unit) { onDispose { save() } }
-    BackHandler { onNavigateBack() }
+    BackHandler {
+        onNavigateBack()
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -302,56 +323,84 @@ fun EditorScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                     navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
-                    actionIconContentColor = MaterialTheme.colorScheme.primary
+                    actionIconContentColor = MaterialTheme.colorScheme.primary,
                 ),
                 title = { },
                 navigationIcon = {
-                    IconButton(onClick = { onNavigateBack() }) {
+                    IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Atrás")
                     }
                 },
                 actions = {
                     if (editingNote != null) {
-                        IconButton(onClick = { alreadySaved.value = true; onDelete(editingNote) }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
+                        IconButton(onClick = { 
+                            isDeleted = true
+                            onDelete(currentNoteId)
+                            onNavigateBack()
+                        }) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = "Eliminar Nota",
+                                tint = MaterialTheme.colorScheme.error
+                            )
                         }
                     }
-                    IconButton(onClick = { save() }) {
-                        Icon(Icons.Default.Check, contentDescription = "Guardar")
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Default.Check, contentDescription = "Guardar Nota")
                     }
                 }
             )
         }
     ) { innerPadding ->
         Column(
-            modifier = Modifier.padding(innerPadding).fillMaxSize().padding(horizontal = 24.dp)
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
+                .padding(horizontal = 24.dp)
         ) {
             Box(contentAlignment = Alignment.CenterStart) {
                 if (titleText.isEmpty()) {
                     Text(
                         text = "Título",
-                        style = TextStyle(fontSize = 24.sp, fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                        style = TextStyle(
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        )
                     )
                 }
                 BasicTextField(
-                    value = titleText, onValueChange = { titleText = it },
-                    textStyle = TextStyle(fontSize = 24.sp, fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground),
+                    value = titleText,
+                    onValueChange = { titleText = it },
+                    textStyle = TextStyle(
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    ),
                     modifier = Modifier.fillMaxWidth(),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
                 )
             }
+
             Spacer(modifier = Modifier.height(16.dp))
+
             Box(modifier = Modifier.fillMaxSize()) {
                 if (bodyText.isEmpty()) {
-                    Text(text = "Escribe tu nota...",
-                        style = TextStyle(fontSize = 16.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)))
+                    Text(
+                        text = "Escribe tu nota...",
+                        style = TextStyle(
+                            fontSize = 16.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        )
+                    )
                 }
                 BasicTextField(
-                    value = bodyText, onValueChange = { bodyText = it },
-                    textStyle = TextStyle(fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground),
+                    value = bodyText,
+                    onValueChange = { bodyText = it },
+                    textStyle = TextStyle(
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onBackground
+                    ),
                     modifier = Modifier.fillMaxSize(),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
                 )
@@ -360,19 +409,20 @@ fun EditorScreen(
     }
 }
 
-// ─── Settings ─────────────────────────────────────────────────────────────────────────
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(onNavigateBack: () -> Unit) {
-    BackHandler { onNavigateBack() }
+    BackHandler {
+        onNavigateBack()
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onBackground
+                    navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
                 ),
                 title = { },
                 navigationIcon = {
@@ -384,70 +434,64 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
         }
     ) { innerPadding ->
         Column(
-            modifier = Modifier.padding(innerPadding).fillMaxSize().padding(horizontal = 20.dp)
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
         ) {
-            // One UI large title for thumb reachability
+            // One UI Reachability Header (Big Title pushing content down)
+            Spacer(modifier = Modifier.height(100.dp))
+            
             Text(
                 text = "Ajustes",
-                style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(top = 16.dp, bottom = 28.dp)
+                style = TextStyle(
+                    fontSize = 42.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                ),
+                modifier = Modifier.padding(horizontal = 24.dp)
             )
-            // About card
+            
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Settings Cards
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
-                Column {
-                    SettingsRow(icon = Icons.Default.Info, title = "Acerca de yNotes",
-                        subtitle = "Una app de notas local con estilo One UI")
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 20.dp),
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
-                    )
-                    SettingsRow(icon = Icons.Default.Settings, title = "Versión", subtitle = "1.0.0")
+                Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                    SettingItem(title = "Acerca de la app", subtitle = "yNotes desarrollada para ti")
+                    Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
+                    SettingItem(title = "Versión", subtitle = "1.0.0 (AMOLED Edition)")
                 }
-            }
-            Spacer(modifier = Modifier.height(20.dp))
-            // Storage card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-            ) {
-                SettingsRow(icon = Icons.Default.Storage, title = "Almacenamiento",
-                    subtitle = "100% local — sin sincronización en la nube")
             }
         }
     }
 }
 
 @Composable
-fun SettingsRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
+fun SettingItem(title: String, subtitle: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { /* No action yet */ }
+            .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
-        Icon(
-            imageVector = icon, contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(24.dp)
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurface
         )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column {
-            Text(text = title,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.onSurface)
-            Text(text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
