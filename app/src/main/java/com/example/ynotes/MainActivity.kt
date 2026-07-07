@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -33,7 +34,6 @@ import androidx.compose.ui.unit.sp
 import com.example.ynotes.ui.theme.YNotesTheme
 import java.util.UUID
 
-// Note now has a unique id for edit/delete operations
 data class Note(
     val id: String = UUID.randomUUID().toString(),
     val title: String,
@@ -43,6 +43,7 @@ data class Note(
 sealed class Screen {
     object Home : Screen()
     data class Editor(val note: Note? = null) : Screen()
+    object Settings : Screen()
 }
 
 class MainActivity : ComponentActivity() {
@@ -71,13 +72,14 @@ fun NotesApp() {
             HomeScreen(
                 notes = notes,
                 onAddNote = { currentScreen = Screen.Editor(note = null) },
-                onNoteClick = { note -> currentScreen = Screen.Editor(note = note) }
+                onNoteClick = { note -> currentScreen = Screen.Editor(note = note) },
+                onOpenSettings = { currentScreen = Screen.Settings }
             )
         }
         is Screen.Editor -> {
             EditorScreen(
                 editingNote = screen.note,
-                onAutoSave = { title, body ->
+                onCommit = { title, body ->
                     val existing = screen.note
                     if (existing != null) {
                         val idx = notes.indexOfFirst { it.id == existing.id }
@@ -98,6 +100,11 @@ fun NotesApp() {
                 onNavigateBack = { currentScreen = Screen.Home }
             )
         }
+        is Screen.Settings -> {
+            SettingsScreen(
+                onNavigateBack = { currentScreen = Screen.Home }
+            )
+        }
     }
 }
 
@@ -106,7 +113,8 @@ fun NotesApp() {
 fun HomeScreen(
     notes: List<Note>,
     onAddNote: () -> Unit,
-    onNoteClick: (Note) -> Unit
+    onNoteClick: (Note) -> Unit,
+    onOpenSettings: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
@@ -114,7 +122,7 @@ fun HomeScreen(
         if (searchQuery.isBlank()) notes
         else notes.filter {
             it.title.contains(searchQuery, ignoreCase = true) ||
-            it.body.contains(searchQuery, ignoreCase = true)
+                    it.body.contains(searchQuery, ignoreCase = true)
         }
     }
 
@@ -135,7 +143,6 @@ fun HomeScreen(
                 .padding(innerPadding)
                 .fillMaxSize()
         ) {
-            // One UI 8.5 Floating Search Bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -188,14 +195,13 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.width(10.dp))
 
-                // Settings circular button
                 Surface(
                     modifier = Modifier.size(52.dp),
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     tonalElevation = 0.dp
                 ) {
-                    IconButton(onClick = { /* TODO: Settings */ }) {
+                    IconButton(onClick = onOpenSettings) {
                         Icon(
                             imageVector = Icons.Default.Settings,
                             contentDescription = "Configuración",
@@ -205,7 +211,6 @@ fun HomeScreen(
                 }
             }
 
-            // App title
             Text(
                 text = "yNotes",
                 style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
@@ -221,7 +226,8 @@ fun HomeScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (searchQuery.isBlank()) "Todavía no hay notas. ¡Añade una!" else "Sin resultados para \"$searchQuery\"",
+                        text = if (searchQuery.isBlank()) "Todavía no hay notas. ¡Añade una!"
+                        else "Sin resultados para \"$searchQuery\"",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                     )
@@ -284,23 +290,28 @@ fun NoteCard(note: Note, onClick: () -> Unit) {
 @Composable
 fun EditorScreen(
     editingNote: Note?,
-    onAutoSave: (title: String, body: String) -> Unit,
+    onCommit: (title: String, body: String) -> Unit,
     onDelete: (Note) -> Unit,
     onNavigateBack: () -> Unit
 ) {
     var titleText by remember { mutableStateOf(editingNote?.title ?: "") }
     var bodyText by remember { mutableStateOf(editingNote?.body ?: "") }
 
-    // Auto-save: fires when the composable leaves composition for any reason
-    DisposableEffect(Unit) {
-        onDispose {
-            onAutoSave(titleText.trim(), bodyText.trim())
+    // BUG FIX: flag ensures onCommit is only called ONCE.
+    val alreadySaved = remember { mutableStateOf(false) }
+
+    fun save() {
+        if (!alreadySaved.value) {
+            alreadySaved.value = true
+            onCommit(titleText.trim(), bodyText.trim())
         }
     }
 
-    BackHandler {
-        onNavigateBack()
+    DisposableEffect(Unit) {
+        onDispose { save() }
     }
+
+    BackHandler { onNavigateBack() }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -313,13 +324,16 @@ fun EditorScreen(
                 ),
                 title = { },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = { onNavigateBack() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Atrás")
                     }
                 },
                 actions = {
                     if (editingNote != null) {
-                        IconButton(onClick = { onDelete(editingNote) }) {
+                        IconButton(onClick = {
+                            alreadySaved.value = true
+                            onDelete(editingNote)
+                        }) {
                             Icon(
                                 Icons.Default.Delete,
                                 contentDescription = "Eliminar Nota",
@@ -327,7 +341,7 @@ fun EditorScreen(
                             )
                         }
                     }
-                    IconButton(onClick = { onAutoSave(titleText.trim(), bodyText.trim()) }) {
+                    IconButton(onClick = { save() }) {
                         Icon(Icons.Default.Check, contentDescription = "Guardar Nota")
                     }
                 }
@@ -387,6 +401,123 @@ fun EditorScreen(
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
                 )
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsScreen(onNavigateBack: () -> Unit) {
+    BackHandler { onNavigateBack() }
+
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onBackground
+                ),
+                title = { },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Atrás")
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
+                .padding(horizontal = 20.dp)
+        ) {
+            Text(
+                text = "Ajustes",
+                style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(top = 16.dp, bottom = 28.dp)
+            )
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Column {
+                    SettingsRow(
+                        icon = Icons.Default.Info,
+                        title = "Acerca de yNotes",
+                        subtitle = "Una app de notas local con estilo One UI"
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                    )
+                    SettingsRow(
+                        icon = Icons.Default.Settings,
+                        title = "Versión",
+                        subtitle = "1.0.0"
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                SettingsRow(
+                    icon = Icons.Default.Delete,
+                    title = "Almacenamiento",
+                    subtitle = "100% local — sin sincronización en la nube"
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SettingsRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    tintError: Boolean = false
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = if (tintError) MaterialTheme.colorScheme.error
+            else MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
