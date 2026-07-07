@@ -38,6 +38,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ynotes.ui.theme.YNotesTheme
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import java.util.UUID
 
 data class Note(
@@ -49,8 +51,9 @@ data class Note(
 
 sealed class Screen {
     object Home : Screen()
+    object SafeZoneHome : Screen()
     data class Editor(val note: Note? = null, val isSecret: Boolean = false) : Screen()
-    object Settings : Screen()
+    data class Settings(val isFromSafeZone: Boolean) : Screen()
 }
 
 class MainActivity : FragmentActivity() {
@@ -73,6 +76,7 @@ class MainActivity : FragmentActivity() {
 fun NotesApp() {
     val context = LocalContext.current
     val sharedPref = remember { context.getSharedPreferences("yNotesPrefs", Context.MODE_PRIVATE) }
+    val gson = remember { Gson() }
     
     var safeZonePassword by remember { 
         mutableStateOf(sharedPref.getString("SAFE_ZONE_PWD", "") ?: "") 
@@ -82,10 +86,21 @@ fun NotesApp() {
         mutableStateOf(sharedPref.getBoolean("BIOMETRIC_ENABLED", false))
     }
     
-    val notes = remember { mutableStateListOf<Note>() }
-    var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
-    var isSafeZoneActive by remember { mutableStateOf(false) }
+    // Cargar notas desde SharedPreferences (Persistencia)
+    val notes = remember { 
+        val json = sharedPref.getString("NOTES_LIST", "[]")
+        val type = object : TypeToken<List<Note>>() {}.type
+        val loadedNotes: List<Note> = gson.fromJson(json, type)
+        mutableStateListOf(*loadedNotes.toTypedArray())
+    }
 
+    // Función auxiliar para guardar notas en SharedPreferences (Tiempo real)
+    val persistNotes = {
+        sharedPref.edit().putString("NOTES_LIST", gson.toJson(notes)).apply()
+    }
+
+    var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
+    
     val fragmentActivity = context as? FragmentActivity
     val executor = ContextCompat.getMainExecutor(context)
 
@@ -96,7 +111,7 @@ fun NotesApp() {
                 object : BiometricPrompt.AuthenticationCallback() {
                     override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                         super.onAuthenticationSucceeded(result)
-                        isSafeZoneActive = true
+                        currentScreen = Screen.SafeZoneHome
                     }
                 })
 
@@ -108,8 +123,7 @@ fun NotesApp() {
 
             biometricPrompt.authenticate(promptInfo)
         } else {
-            // Si la biometría está desactivada o no soportada, entra directo
-            isSafeZoneActive = true
+            currentScreen = Screen.SafeZoneHome
         }
     }
 
@@ -118,21 +132,27 @@ fun NotesApp() {
             HomeScreen(
                 notes = notes,
                 safeZonePassword = safeZonePassword,
-                isSafeZoneActive = isSafeZoneActive,
                 onRequestSafeZone = onRequestSafeZone,
-                onDeactivateSafeZone = { isSafeZoneActive = false },
-                onAddNote = { currentScreen = Screen.Editor(note = null, isSecret = isSafeZoneActive) },
-                onNoteClick = { note -> currentScreen = Screen.Editor(note = note, isSecret = isSafeZoneActive) },
-                onSettingsClick = { currentScreen = Screen.Settings }
+                onAddNote = { currentScreen = Screen.Editor(note = null, isSecret = false) },
+                onNoteClick = { note -> currentScreen = Screen.Editor(note = note, isSecret = false) },
+                onSettingsClick = { currentScreen = Screen.Settings(isFromSafeZone = false) }
+            )
+        }
+        is Screen.SafeZoneHome -> {
+            SafeZoneScreen(
+                notes = notes,
+                onDeactivateSafeZone = { currentScreen = Screen.Home },
+                onAddNote = { currentScreen = Screen.Editor(note = null, isSecret = true) },
+                onNoteClick = { note -> currentScreen = Screen.Editor(note = note, isSecret = true) },
+                onSettingsClick = { currentScreen = Screen.Settings(isFromSafeZone = true) }
             )
         }
         is Screen.Settings -> {
             SettingsScreen(
                 currentPassword = safeZonePassword,
-                isSafeZoneActive = isSafeZoneActive,
+                isSafeZoneActive = screen.isFromSafeZone,
                 onSavePassword = { newPwd ->
                     val editor = sharedPref.edit()
-                    // Si es la primera vez que se crea la zona segura, activamos biometría por defecto
                     if (safeZonePassword.isEmpty() && newPwd.isNotEmpty()) {
                         editor.putBoolean("BIOMETRIC_ENABLED", true)
                         isBiometricEnabled = true
@@ -141,9 +161,8 @@ fun NotesApp() {
                     editor.apply()
                     safeZonePassword = newPwd
 
-                    // Si se elimina la contraseña, salimos de la zona segura
-                    if (newPwd.isEmpty()) {
-                        isSafeZoneActive = false
+                    if (newPwd.isEmpty() && screen.isFromSafeZone) {
+                        currentScreen = Screen.Home // Echado de la zona segura si elimina la pass
                     }
                 },
                 isBiometricEnabled = isBiometricEnabled,
@@ -151,12 +170,15 @@ fun NotesApp() {
                     sharedPref.edit().putBoolean("BIOMETRIC_ENABLED", enabled).apply()
                     isBiometricEnabled = enabled
                 },
-                onNavigateBack = { currentScreen = Screen.Home }
+                onNavigateBack = { 
+                    currentScreen = if (screen.isFromSafeZone) Screen.SafeZoneHome else Screen.Home
+                }
             )
         }
         is Screen.Editor -> {
             EditorScreen(
                 editingNote = screen.note,
+                isSecret = screen.isSecret,
                 onSave = { id, title, body ->
                     val idx = notes.indexOfFirst { it.id == id }
                     if (idx >= 0) {
@@ -170,24 +192,29 @@ fun NotesApp() {
                             notes.add(Note(id = id, title = title, body = body, isSecret = screen.isSecret))
                         }
                     }
+                    persistNotes() // Guardado persistente inmediato
                 },
                 onDelete = { idToDelete ->
                     notes.removeIf { it.id == idToDelete }
+                    persistNotes() // Guardado persistente inmediato
                 },
-                onNavigateBack = { currentScreen = Screen.Home }
+                onNavigateBack = { 
+                    currentScreen = if (screen.isSecret) Screen.SafeZoneHome else Screen.Home
+                }
             )
         }
     }
 }
 
+// ==========================================
+// HOME SCREEN (Modo Normal)
+// ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     notes: List<Note>,
     safeZonePassword: String,
-    isSafeZoneActive: Boolean,
     onRequestSafeZone: () -> Unit,
-    onDeactivateSafeZone: () -> Unit,
     onAddNote: () -> Unit,
     onNoteClick: (Note) -> Unit,
     onSettingsClick: () -> Unit
@@ -195,14 +222,14 @@ fun HomeScreen(
     var searchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(searchQuery) {
-        if (safeZonePassword.isNotEmpty() && searchQuery == safeZonePassword && !isSafeZoneActive) {
+        if (safeZonePassword.isNotEmpty() && searchQuery == safeZonePassword) {
             searchQuery = "" // Limpiamos la barra inmediatamente
-            onRequestSafeZone() // Pedimos biometría antes de entrar
+            onRequestSafeZone()
         }
     }
 
-    val visibleNotes = remember(notes, isSafeZoneActive) {
-        notes.filter { it.isSecret == isSafeZoneActive }
+    val visibleNotes = remember(notes) {
+        notes.filter { !it.isSecret }
     }
 
     val filteredNotes = remember(visibleNotes, searchQuery) {
@@ -219,12 +246,12 @@ fun HomeScreen(
             FloatingActionButton(
                 onClick = onAddNote,
                 shape = CircleShape,
-                containerColor = if (isSafeZoneActive) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primary
+                containerColor = MaterialTheme.colorScheme.primary
             ) {
                 Icon(
                     Icons.Default.Add, 
                     contentDescription = "Añadir Nota",
-                    tint = if (isSafeZoneActive) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimary
+                    tint = MaterialTheme.colorScheme.onPrimary
                 )
             }
         }
@@ -302,6 +329,159 @@ fun HomeScreen(
                 }
             }
 
+            Text(
+                text = "yNotes",
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (filteredNotes.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (searchQuery.isBlank()) "Todavía no hay notas. ¡Añade una!" else "Sin resultados para \"$searchQuery\"",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                    )
+                }
+            } else {
+                LazyVerticalStaggeredGrid(
+                    columns = StaggeredGridCells.Fixed(2),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalItemSpacing = 12.dp
+                ) {
+                    items(filteredNotes, key = { it.id }) { note ->
+                        NoteCard(note = note, onClick = { onNoteClick(note) })
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ==========================================
+// SAFE ZONE SCREEN (Aislado)
+// ==========================================
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SafeZoneScreen(
+    notes: List<Note>,
+    onDeactivateSafeZone: () -> Unit,
+    onAddNote: () -> Unit,
+    onNoteClick: (Note) -> Unit,
+    onSettingsClick: () -> Unit
+) {
+    var searchQuery by remember { mutableStateOf("") }
+
+    val visibleNotes = remember(notes) {
+        notes.filter { it.isSecret }
+    }
+
+    val filteredNotes = remember(visibleNotes, searchQuery) {
+        if (searchQuery.isBlank()) visibleNotes
+        else visibleNotes.filter {
+            it.title.contains(searchQuery, ignoreCase = true) ||
+            it.body.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
+    // Diseño de Bóveda (Diferenciado por detalles rojos)
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = onAddNote,
+                shape = CircleShape,
+                containerColor = MaterialTheme.colorScheme.errorContainer // Rojo
+            ) {
+                Icon(
+                    Icons.Default.Add, 
+                    contentDescription = "Añadir Nota Secreta",
+                    tint = MaterialTheme.colorScheme.onErrorContainer
+                )
+            }
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp),
+                    shape = RoundedCornerShape(50.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    tonalElevation = 0.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Buscar secreto",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Box(modifier = Modifier.weight(1f)) {
+                            if (searchQuery.isEmpty()) {
+                                Text(
+                                    text = "Buscar en bóveda",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                            }
+                            BasicTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                textStyle = TextStyle(
+                                    fontSize = 16.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                ),
+                                modifier = Modifier.fillMaxWidth(),
+                                cursorBrush = SolidColor(MaterialTheme.colorScheme.error), // Cursor Rojo
+                                singleLine = true
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Surface(
+                    modifier = Modifier.size(52.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    tonalElevation = 0.dp
+                ) {
+                    IconButton(onClick = onSettingsClick) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Configuración Zona Segura",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -309,18 +489,16 @@ fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (isSafeZoneActive) "yNotes - Zona Segura" else "yNotes",
+                    text = "Zona Segura",
                     style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                    color = if (isSafeZoneActive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onBackground,
+                    color = MaterialTheme.colorScheme.error, // Título rojo
                     modifier = Modifier.weight(1f)
                 )
 
-                if (isSafeZoneActive) {
-                    TextButton(onClick = onDeactivateSafeZone) {
-                        Icon(Icons.Default.Close, contentDescription = "Salir", modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Salir")
-                    }
+                TextButton(onClick = onDeactivateSafeZone) {
+                    Icon(Icons.Default.Lock, contentDescription = "Salir", modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Cerrar")
                 }
             }
 
@@ -332,9 +510,7 @@ fun HomeScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (searchQuery.isBlank()) {
-                            if (isSafeZoneActive) "Bóveda vacía. ¡Añade tu primer secreto!" else "Todavía no hay notas. ¡Añade una!"
-                        } else "Sin resultados para \"$searchQuery\"",
+                        text = if (searchQuery.isBlank()) "Bóveda vacía. ¡Añade tu primer secreto!" else "Sin resultados para \"$searchQuery\"",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                     )
@@ -393,10 +569,14 @@ fun NoteCard(note: Note, onClick: () -> Unit) {
     }
 }
 
+// ==========================================
+// EDITOR SCREEN (Auto-guardado Real-time)
+// ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditorScreen(
     editingNote: Note?,
+    isSecret: Boolean, // Para saber qué color aplicar al cursor
     onSave: (id: String, title: String, body: String) -> Unit,
     onDelete: (id: String) -> Unit,
     onNavigateBack: () -> Unit
@@ -406,13 +586,8 @@ fun EditorScreen(
     var bodyText by remember { mutableStateOf(editingNote?.body ?: "") }
     var isDeleted by remember { mutableStateOf(false) }
 
-    DisposableEffect(Unit) {
-        onDispose {
-            if (!isDeleted) {
-                onSave(currentNoteId, titleText.trim(), bodyText.trim())
-            }
-        }
-    }
+    // Color del cursor dependiendo de si es normal o secreto
+    val cursorColor = if (isSecret) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
 
     BackHandler {
         onNavigateBack()
@@ -473,14 +648,18 @@ fun EditorScreen(
                 }
                 BasicTextField(
                     value = titleText,
-                    onValueChange = { titleText = it },
+                    onValueChange = { 
+                        titleText = it 
+                        // Auto-guardado en TIEMPO REAL
+                        if (!isDeleted) onSave(currentNoteId, titleText.trim(), bodyText.trim())
+                    },
                     textStyle = TextStyle(
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
                     ),
                     modifier = Modifier.fillMaxWidth(),
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
+                    cursorBrush = SolidColor(cursorColor)
                 )
             }
 
@@ -498,13 +677,17 @@ fun EditorScreen(
                 }
                 BasicTextField(
                     value = bodyText,
-                    onValueChange = { bodyText = it },
+                    onValueChange = { 
+                        bodyText = it 
+                        // Auto-guardado en TIEMPO REAL
+                        if (!isDeleted) onSave(currentNoteId, titleText.trim(), bodyText.trim())
+                    },
                     textStyle = TextStyle(
                         fontSize = 16.sp,
                         color = MaterialTheme.colorScheme.onBackground
                     ),
                     modifier = Modifier.fillMaxSize(),
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
+                    cursorBrush = SolidColor(cursorColor)
                 )
             }
         }
@@ -530,7 +713,6 @@ fun SettingsScreen(
         biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL) == BiometricManager.BIOMETRIC_SUCCESS
     }
 
-    // Se muestran opciones de seguridad SI no hay contraseña creada, O si ya estamos dentro de la Zona Segura
     val showSecurityOptions = currentPassword.isEmpty() || isSafeZoneActive
 
     BackHandler {
@@ -624,7 +806,6 @@ fun SettingsScreen(
                     
                     if (showSecurityOptions) {
                         if (currentPassword.isNotEmpty()) {
-                            // Biometric Toggle - Solo visible si ya hay zona segura
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -653,7 +834,6 @@ fun SettingsScreen(
                             Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
                         }
                         
-                        // Opcion de clave
                         SettingItem(
                             title = if (currentPassword.isEmpty()) "Crear Zona Segura" else "Cambiar / Eliminar Contraseña", 
                             subtitle = if (currentPassword.isEmpty()) "Inactiva (Toca para crear)" else "Activa (La Zona Segura está protegida)",
@@ -665,7 +845,6 @@ fun SettingsScreen(
                         Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
                     }
 
-                    // Ajustes Normales
                     SettingItem(title = "Acerca de la app", subtitle = "yNotes desarrollada para ti", onClick = {})
                     Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
                     SettingItem(title = "Versión", subtitle = "1.0.0 (AMOLED Edition)", onClick = {})
