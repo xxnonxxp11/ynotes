@@ -353,7 +353,7 @@ fun HomeScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.EditDocument,
+                        imageVector = Icons.Outlined.Description,
                         contentDescription = "Sin notas",
                         modifier = Modifier.size(80.dp).padding(bottom = 16.dp),
                         tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f)
@@ -505,7 +505,7 @@ fun SafeZoneScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.Shield,
+                    imageVector = Icons.Default.Security,
                     contentDescription = "Bóveda",
                     tint = MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(28.dp)
