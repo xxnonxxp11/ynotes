@@ -6,12 +6,14 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.ynotes.ui.theme.YNotesTheme
@@ -48,7 +50,8 @@ fun NotesApp() {
                     value = newNoteText,
                     onValueChange = { newNoteText = it },
                     label = { Text("Escribe tu nota aquí") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3
                 )
             },
             confirmButton = {
@@ -78,14 +81,15 @@ fun NotesApp() {
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.primary,
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
                 ),
                 title = {
-                    Text("yNotes")
+                    Text("yNotes", fontWeight = FontWeight.Bold)
                 }
             )
         },
@@ -105,7 +109,7 @@ fun NotesApp() {
                 Text(
                     text = "Todavía no hay notas. ¡Añade una!",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
         } else {
@@ -114,7 +118,7 @@ fun NotesApp() {
                     .padding(innerPadding)
                     .fillMaxSize(),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(notes) { note ->
                     NoteCard(note)
@@ -126,15 +130,38 @@ fun NotesApp() {
 
 @Composable
 fun NoteCard(text: String) {
+    val lines = text.trim().lines()
+    val title = lines.firstOrNull() ?: ""
+    val body = if (lines.size > 1) lines.drop(1).joinToString("\n").trim() else ""
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.bodyLarge
-            )
+        Column(modifier = Modifier.padding(20.dp)) {
+            if (title.isNotEmpty()) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            if (body.isNotEmpty()) {
+                if (title.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                }
+                Text(
+                    text = body,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }
