@@ -9,7 +9,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -34,13 +35,47 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotesApp() {
-    val dummyNotes = listOf(
-        "Comprar leche y pan",
-        "Llamar a Juan para la reunión de mañana",
-        "Ideas para la app: Hacerla rápida y con Material 3",
-        "Revisar el código de GitHub Actions",
-        "Aprender más sobre Jetpack Compose"
-    )
+    val notes = remember { mutableStateListOf<String>() }
+    var showDialog by remember { mutableStateOf(false) }
+    var newNoteText by remember { mutableStateOf("") }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text("Nueva Nota") },
+            text = {
+                OutlinedTextField(
+                    value = newNoteText,
+                    onValueChange = { newNoteText = it },
+                    label = { Text("Escribe tu nota aquí") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (newNoteText.isNotBlank()) {
+                            notes.add(newNoteText)
+                            newNoteText = ""
+                            showDialog = false
+                        }
+                    }
+                ) {
+                    Text("Guardar")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDialog = false
+                        newNoteText = ""
+                    }
+                ) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -55,20 +90,35 @@ fun NotesApp() {
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { /* TODO */ }) {
+            FloatingActionButton(onClick = { showDialog = true }) {
                 Icon(Icons.Default.Add, contentDescription = "Añadir Nota")
             }
         }
     ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(dummyNotes) { note ->
-                NoteCard(note)
+        if (notes.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Todavía no hay notas. ¡Añade una!",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(notes) { note ->
+                    NoteCard(note)
+                }
             }
         }
     }
@@ -83,9 +133,7 @@ fun NoteCard(text: String) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = text,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis
+                style = MaterialTheme.typography.bodyLarge
             )
         }
     }
