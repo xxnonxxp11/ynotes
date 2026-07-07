@@ -1,5 +1,6 @@
 package com.example.ynotes
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -19,12 +20,14 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -36,12 +39,13 @@ import java.util.UUID
 data class Note(
     val id: String,
     val title: String,
-    val body: String
+    val body: String,
+    val isSecret: Boolean = false
 )
 
 sealed class Screen {
     object Home : Screen()
-    data class Editor(val note: Note? = null) : Screen()
+    data class Editor(val note: Note? = null, val isSecret: Boolean = false) : Screen()
     object Settings : Screen()
 }
 
@@ -63,20 +67,42 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun NotesApp() {
+    val context = LocalContext.current
+    val sharedPref = remember { context.getSharedPreferences("yNotesPrefs", Context.MODE_PRIVATE) }
+    
+    // Persistent safe zone password
+    var safeZonePassword by remember { 
+        mutableStateOf(sharedPref.getString("SAFE_ZONE_PWD", "") ?: "") 
+    }
+    
+    // In-memory notes (will vanish on app restart unless you use Room, as chosen)
     val notes = remember { mutableStateListOf<Note>() }
+    
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
+    
+    // Session state for Safe Zone
+    var isSafeZoneActive by remember { mutableStateOf(false) }
 
     when (val screen = currentScreen) {
         is Screen.Home -> {
             HomeScreen(
                 notes = notes,
-                onAddNote = { currentScreen = Screen.Editor(note = null) },
-                onNoteClick = { note -> currentScreen = Screen.Editor(note = note) },
+                safeZonePassword = safeZonePassword,
+                isSafeZoneActive = isSafeZoneActive,
+                onActivateSafeZone = { isSafeZoneActive = true },
+                onDeactivateSafeZone = { isSafeZoneActive = false },
+                onAddNote = { currentScreen = Screen.Editor(note = null, isSecret = isSafeZoneActive) },
+                onNoteClick = { note -> currentScreen = Screen.Editor(note = note, isSecret = isSafeZoneActive) },
                 onSettingsClick = { currentScreen = Screen.Settings }
             )
         }
         is Screen.Settings -> {
             SettingsScreen(
+                currentPassword = safeZonePassword,
+                onSavePassword = { newPwd ->
+                    sharedPref.edit().putString("SAFE_ZONE_PWD", newPwd).apply()
+                    safeZonePassword = newPwd
+                },
                 onNavigateBack = { currentScreen = Screen.Home }
             )
         }
@@ -87,14 +113,13 @@ fun NotesApp() {
                     val idx = notes.indexOfFirst { it.id == id }
                     if (idx >= 0) {
                         if (title.isNotBlank() || body.isNotBlank()) {
-                            notes[idx] = notes[idx].copy(title = title, body = body)
+                            notes[idx] = notes[idx].copy(title = title, body = body) // Keeps original isSecret state
                         } else {
-                            // Si borraron todo el texto de una nota existente, se elimina
                             notes.removeAt(idx)
                         }
                     } else {
                         if (title.isNotBlank() || body.isNotBlank()) {
-                            notes.add(Note(id = id, title = title, body = body))
+                            notes.add(Note(id = id, title = title, body = body, isSecret = screen.isSecret))
                         }
                     }
                 },
@@ -111,15 +136,32 @@ fun NotesApp() {
 @Composable
 fun HomeScreen(
     notes: List<Note>,
+    safeZonePassword: String,
+    isSafeZoneActive: Boolean,
+    onActivateSafeZone: () -> Unit,
+    onDeactivateSafeZone: () -> Unit,
     onAddNote: () -> Unit,
     onNoteClick: (Note) -> Unit,
     onSettingsClick: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
-    val filteredNotes = remember(notes, searchQuery) {
-        if (searchQuery.isBlank()) notes
-        else notes.filter {
+    // Easter Egg: Activate safe zone if password matches exactly
+    LaunchedEffect(searchQuery) {
+        if (safeZonePassword.isNotEmpty() && searchQuery == safeZonePassword && !isSafeZoneActive) {
+            searchQuery = "" // Clear the bar immediately
+            onActivateSafeZone()
+        }
+    }
+
+    // Filter by zone first, then by query
+    val visibleNotes = remember(notes, isSafeZoneActive) {
+        notes.filter { it.isSecret == isSafeZoneActive }
+    }
+
+    val filteredNotes = remember(visibleNotes, searchQuery) {
+        if (searchQuery.isBlank()) visibleNotes
+        else visibleNotes.filter {
             it.title.contains(searchQuery, ignoreCase = true) ||
             it.body.contains(searchQuery, ignoreCase = true)
         }
@@ -131,9 +173,13 @@ fun HomeScreen(
             FloatingActionButton(
                 onClick = onAddNote,
                 shape = CircleShape,
-                containerColor = MaterialTheme.colorScheme.primary
+                containerColor = if (isSafeZoneActive) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primary
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Añadir Nota")
+                Icon(
+                    Icons.Default.Add, 
+                    contentDescription = "Añadir Nota",
+                    tint = if (isSafeZoneActive) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimary
+                )
             }
         }
     ) { innerPadding ->
@@ -212,13 +258,28 @@ fun HomeScreen(
                 }
             }
 
-            // App title
-            Text(
-                text = "yNotes",
-                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
-            )
+            // App title row with Safe Zone Exit button
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (isSafeZoneActive) "yNotes - Zona Segura" else "yNotes",
+                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                    color = if (isSafeZoneActive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.weight(1f)
+                )
+
+                if (isSafeZoneActive) {
+                    TextButton(onClick = onDeactivateSafeZone) {
+                        Icon(Icons.Default.Close, contentDescription = "Salir", modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Salir")
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -228,7 +289,9 @@ fun HomeScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (searchQuery.isBlank()) "Todavía no hay notas. ¡Añade una!" else "Sin resultados para \"$searchQuery\"",
+                        text = if (searchQuery.isBlank()) {
+                            if (isSafeZoneActive) "Bóveda vacía. ¡Añade tu primer secreto!" else "Todavía no hay notas. ¡Añade una!"
+                        } else "Sin resultados para \"$searchQuery\"",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                     )
@@ -295,15 +358,11 @@ fun EditorScreen(
     onDelete: (id: String) -> Unit,
     onNavigateBack: () -> Unit
 ) {
-    // Generamos el ID único al momento de abrir la pantalla.
-    // Garantiza que la nota siempre tenga identidad, evitando duplicados.
     val currentNoteId = remember { editingNote?.id ?: UUID.randomUUID().toString() }
-    
     var titleText by remember { mutableStateOf(editingNote?.title ?: "") }
     var bodyText by remember { mutableStateOf(editingNote?.body ?: "") }
     var isDeleted by remember { mutableStateOf(false) }
 
-    // Auto-save: solo se llama la orden de guardar al salir de la vista.
     DisposableEffect(Unit) {
         onDispose {
             if (!isDeleted) {
@@ -411,9 +470,53 @@ fun EditorScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onNavigateBack: () -> Unit) {
+fun SettingsScreen(
+    currentPassword: String,
+    onSavePassword: (String) -> Unit,
+    onNavigateBack: () -> Unit
+) {
+    var showDialog by remember { mutableStateOf(false) }
+    var inputPassword by remember { mutableStateOf("") }
+
     BackHandler {
         onNavigateBack()
+    }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text(if (currentPassword.isEmpty()) "Crear Contraseña" else "Cambiar Contraseña") },
+            text = {
+                Column {
+                    Text("Para acceder a la Zona Segura, deberás buscar esta palabra exacta en la barra de búsqueda principal.", style = MaterialTheme.typography.bodySmall)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = inputPassword,
+                        onValueChange = { inputPassword = it },
+                        label = { Text("Contraseña") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (currentPassword.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Nota: Guarda con el campo vacío para desactivar la Zona Segura.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onSavePassword(inputPassword.trim())
+                    showDialog = false
+                }) {
+                    Text("Guardar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -438,7 +541,6 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
                 .padding(innerPadding)
                 .fillMaxSize()
         ) {
-            // One UI Reachability Header (Big Title pushing content down)
             Spacer(modifier = Modifier.height(100.dp))
             
             Text(
@@ -465,9 +567,18 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                    SettingItem(title = "Acerca de la app", subtitle = "yNotes desarrollada para ti")
+                    SettingItem(
+                        title = "Configurar Zona Segura", 
+                        subtitle = if (currentPassword.isEmpty()) "Inactiva (Toca para crear contraseña)" else "Activa (Búscala para acceder)",
+                        onClick = { 
+                            inputPassword = currentPassword
+                            showDialog = true 
+                        }
+                    )
                     Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
-                    SettingItem(title = "Versión", subtitle = "1.0.0 (AMOLED Edition)")
+                    SettingItem(title = "Acerca de la app", subtitle = "yNotes desarrollada para ti", onClick = {})
+                    Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
+                    SettingItem(title = "Versión", subtitle = "1.0.0 (AMOLED Edition)", onClick = {})
                 }
             }
         }
@@ -475,11 +586,11 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
 }
 
 @Composable
-fun SettingItem(title: String, subtitle: String) {
+fun SettingItem(title: String, subtitle: String, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { /* No action yet */ }
+            .clickable { onClick() }
             .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
         Text(
