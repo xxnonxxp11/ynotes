@@ -2,9 +2,12 @@ package com.example.ynotes
 
 import android.content.Context
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
@@ -21,6 +24,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -49,7 +53,7 @@ sealed class Screen {
     object Settings : Screen()
 }
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -70,18 +74,67 @@ fun NotesApp() {
     val context = LocalContext.current
     val sharedPref = remember { context.getSharedPreferences("yNotesPrefs", Context.MODE_PRIVATE) }
     
-    // Persistent safe zone password
     var safeZonePassword by remember { 
         mutableStateOf(sharedPref.getString("SAFE_ZONE_PWD", "") ?: "") 
     }
     
-    // In-memory notes (will vanish on app restart unless you use Room, as chosen)
+    var isBiometricEnabled by remember {
+        mutableStateOf(sharedPref.getBoolean("BIOMETRIC_ENABLED", false))
+    }
+    
+    // Si la biometría está habilitada, la app arranca bloqueada
+    var isUnlocked by remember { mutableStateOf(!isBiometricEnabled) }
+
     val notes = remember { mutableStateListOf<Note>() }
-    
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
-    
-    // Session state for Safe Zone
     var isSafeZoneActive by remember { mutableStateOf(false) }
+
+    if (isBiometricEnabled && !isUnlocked) {
+        // Lanzamos el prompt de autenticación inmediatamente
+        LaunchedEffect(Unit) {
+            val fragmentActivity = context as FragmentActivity
+            val executor = ContextCompat.getMainExecutor(context)
+            val biometricPrompt = BiometricPrompt(fragmentActivity, executor,
+                object : BiometricPrompt.AuthenticationCallback() {
+                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                        super.onAuthenticationSucceeded(result)
+                        isUnlocked = true
+                    }
+                    override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                        super.onAuthenticationError(errorCode, errString)
+                        // Si falla o el usuario cancela, no lo dejamos entrar. 
+                        // Dejamos la pantalla con el candado.
+                    }
+                })
+
+            val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                .setTitle("Desbloquear yNotes")
+                .setSubtitle("Usa tu huella o PIN para acceder a tus notas")
+                .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+                .build()
+
+            biometricPrompt.authenticate(promptInfo)
+        }
+
+        // Pantalla de bloqueo
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    imageVector = Icons.Default.Lock, 
+                    contentDescription = "Bloqueado", 
+                    modifier = Modifier.size(80.dp), 
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "yNotes está bloqueado",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
+        }
+        return // No renderizamos nada más hasta que se desbloquee
+    }
 
     when (val screen = currentScreen) {
         is Screen.Home -> {
@@ -103,6 +156,11 @@ fun NotesApp() {
                     sharedPref.edit().putString("SAFE_ZONE_PWD", newPwd).apply()
                     safeZonePassword = newPwd
                 },
+                isBiometricEnabled = isBiometricEnabled,
+                onBiometricToggle = { enabled ->
+                    sharedPref.edit().putBoolean("BIOMETRIC_ENABLED", enabled).apply()
+                    isBiometricEnabled = enabled
+                },
                 onNavigateBack = { currentScreen = Screen.Home }
             )
         }
@@ -113,7 +171,7 @@ fun NotesApp() {
                     val idx = notes.indexOfFirst { it.id == id }
                     if (idx >= 0) {
                         if (title.isNotBlank() || body.isNotBlank()) {
-                            notes[idx] = notes[idx].copy(title = title, body = body) // Keeps original isSecret state
+                            notes[idx] = notes[idx].copy(title = title, body = body)
                         } else {
                             notes.removeAt(idx)
                         }
@@ -146,15 +204,13 @@ fun HomeScreen(
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
-    // Easter Egg: Activate safe zone if password matches exactly
     LaunchedEffect(searchQuery) {
         if (safeZonePassword.isNotEmpty() && searchQuery == safeZonePassword && !isSafeZoneActive) {
-            searchQuery = "" // Clear the bar immediately
+            searchQuery = ""
             onActivateSafeZone()
         }
     }
 
-    // Filter by zone first, then by query
     val visibleNotes = remember(notes, isSafeZoneActive) {
         notes.filter { it.isSecret == isSafeZoneActive }
     }
@@ -188,7 +244,6 @@ fun HomeScreen(
                 .padding(innerPadding)
                 .fillMaxSize()
         ) {
-            // One UI 8.5 Floating Search Bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -241,7 +296,6 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.width(10.dp))
 
-                // Settings circular button
                 Surface(
                     modifier = Modifier.size(52.dp),
                     shape = CircleShape,
@@ -258,7 +312,6 @@ fun HomeScreen(
                 }
             }
 
-            // App title row with Safe Zone Exit button
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -473,10 +526,18 @@ fun EditorScreen(
 fun SettingsScreen(
     currentPassword: String,
     onSavePassword: (String) -> Unit,
+    isBiometricEnabled: Boolean,
+    onBiometricToggle: (Boolean) -> Unit,
     onNavigateBack: () -> Unit
 ) {
     var showDialog by remember { mutableStateOf(false) }
     var inputPassword by remember { mutableStateOf("") }
+    
+    val context = LocalContext.current
+    val biometricManager = remember { BiometricManager.from(context) }
+    val canAuthenticate = remember {
+        biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL) == BiometricManager.BIOMETRIC_SUCCESS
+    }
 
     BackHandler {
         onNavigateBack()
@@ -555,7 +616,6 @@ fun SettingsScreen(
             
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Settings Cards
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -567,6 +627,34 @@ fun SettingsScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                    // Biometric Toggle
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Bloqueo por huella", 
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), 
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                if (canAuthenticate) "Usa tu huella o PIN para abrir la app" else "No disponible en este dispositivo", 
+                                style = MaterialTheme.typography.bodyMedium, 
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = isBiometricEnabled,
+                            onCheckedChange = onBiometricToggle,
+                            enabled = canAuthenticate
+                        )
+                    }
+                    Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
+                    
                     SettingItem(
                         title = "Configurar Zona Segura", 
                         subtitle = if (currentPassword.isEmpty()) "Inactiva (Toca para crear contraseña)" else "Activa (Búscala para acceder)",
