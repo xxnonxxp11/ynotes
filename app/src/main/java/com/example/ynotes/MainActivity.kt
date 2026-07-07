@@ -46,6 +46,7 @@ data class Note(
 )
 
 sealed class Screen {
+    object Welcome : Screen()
     object Home : Screen()
     object SafeZoneHome : Screen()
     data class Editor(val note: Note? = null, val isSecret: Boolean = false) : Screen()
@@ -93,7 +94,8 @@ fun NotesApp() {
         sharedPref.edit().putString("NOTES_LIST", gson.toJson(notes)).apply()
     }
 
-    var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
+    val hasSeenWelcome = sharedPref.getBoolean("HAS_SEEN_WELCOME", false)
+    var currentScreen by remember { mutableStateOf<Screen>(if (hasSeenWelcome) Screen.Home else Screen.Welcome) }
     
     val fragmentActivity = context as? FragmentActivity
     val executor = ContextCompat.getMainExecutor(context)
@@ -121,6 +123,14 @@ fun NotesApp() {
     }
 
     when (val screen = currentScreen) {
+        is Screen.Welcome -> {
+            WelcomeScreen(
+                onStart = {
+                    sharedPref.edit().putBoolean("HAS_SEEN_WELCOME", true).apply()
+                    currentScreen = Screen.Home
+                }
+            )
+        }
         is Screen.Home -> {
             HomeScreen(
                 notes = notes,
@@ -970,5 +980,86 @@ fun SettingItem(title: String, subtitle: String, icon: ImageVector, iconTint: an
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+// ==========================================
+// WELCOME SCREEN
+// ==========================================
+@Composable
+fun WelcomeScreen(onStart: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.Menu,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(64.dp).padding(bottom = 16.dp)
+        )
+        Text(
+            text = "Bienvenido a yNotes",
+            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Tus notas rápidas con un secreto.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+        )
+        Spacer(modifier = Modifier.height(48.dp))
+        
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Zona Segura",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Crea tu Zona Segura desde los Ajustes. Para acceder a ella más tarde, simplemente busca tu contraseña secreta en la barra de búsqueda principal.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.weight(1f))
+        
+        Button(
+            onClick = onStart,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            )
+        ) {
+            Text(
+                text = "Comenzar",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+            )
+        }
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }
