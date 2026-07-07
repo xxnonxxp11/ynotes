@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
@@ -17,20 +18,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -86,7 +82,6 @@ fun NotesApp() {
         mutableStateOf(sharedPref.getBoolean("BIOMETRIC_ENABLED", false))
     }
     
-    // Cargar notas desde SharedPreferences (Persistencia)
     val notes = remember { 
         val json = sharedPref.getString("NOTES_LIST", "[]")
         val type = object : TypeToken<List<Note>>() {}.type
@@ -94,7 +89,6 @@ fun NotesApp() {
         mutableStateListOf(*loadedNotes.toTypedArray())
     }
 
-    // Función auxiliar para guardar notas en SharedPreferences (Tiempo real)
     val persistNotes = {
         sharedPref.edit().putString("NOTES_LIST", gson.toJson(notes)).apply()
     }
@@ -104,7 +98,6 @@ fun NotesApp() {
     val fragmentActivity = context as? FragmentActivity
     val executor = ContextCompat.getMainExecutor(context)
 
-    // Lógica para intentar entrar a la zona segura
     val onRequestSafeZone: () -> Unit = {
         if (isBiometricEnabled && fragmentActivity != null) {
             val biometricPrompt = BiometricPrompt(fragmentActivity, executor,
@@ -162,7 +155,7 @@ fun NotesApp() {
                     safeZonePassword = newPwd
 
                     if (newPwd.isEmpty() && screen.isFromSafeZone) {
-                        currentScreen = Screen.Home // Echado de la zona segura si elimina la pass
+                        currentScreen = Screen.Home 
                     }
                 },
                 isBiometricEnabled = isBiometricEnabled,
@@ -192,11 +185,11 @@ fun NotesApp() {
                             notes.add(Note(id = id, title = title, body = body, isSecret = screen.isSecret))
                         }
                     }
-                    persistNotes() // Guardado persistente inmediato
+                    persistNotes()
                 },
                 onDelete = { idToDelete ->
                     notes.removeIf { it.id == idToDelete }
-                    persistNotes() // Guardado persistente inmediato
+                    persistNotes() 
                 },
                 onNavigateBack = { 
                     currentScreen = if (screen.isSecret) Screen.SafeZoneHome else Screen.Home
@@ -207,7 +200,7 @@ fun NotesApp() {
 }
 
 // ==========================================
-// HOME SCREEN (Modo Normal)
+// HOME SCREEN
 // ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -223,7 +216,7 @@ fun HomeScreen(
 
     LaunchedEffect(searchQuery) {
         if (safeZonePassword.isNotEmpty() && searchQuery == safeZonePassword) {
-            searchQuery = "" // Limpiamos la barra inmediatamente
+            searchQuery = "" 
             onRequestSafeZone()
         }
     }
@@ -243,17 +236,14 @@ fun HomeScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
-            FloatingActionButton(
+            ExtendedFloatingActionButton(
                 onClick = onAddNote,
-                shape = CircleShape,
-                containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(
-                    Icons.Default.Add, 
-                    contentDescription = "Añadir Nota",
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
-            }
+                icon = { Icon(Icons.Default.Edit, "Añadir Nota") },
+                text = { Text("Nueva nota") },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = RoundedCornerShape(16.dp)
+            )
         }
     ) { innerPadding ->
         Column(
@@ -308,6 +298,11 @@ fun HomeScreen(
                                 singleLine = true
                             )
                         }
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(24.dp)) {
+                                Icon(Icons.Default.Close, contentDescription = "Limpiar", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
                     }
                 }
 
@@ -329,20 +324,40 @@ fun HomeScreen(
                 }
             }
 
-            Text(
-                text = "yNotes",
-                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Menu,
+                    contentDescription = "Menú",
+                    tint = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.size(28.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "yNotes",
+                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
             if (filteredNotes.isEmpty()) {
-                Box(
+                Column(
                     modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    Icon(
+                        imageVector = Icons.Outlined.EditDocument,
+                        contentDescription = "Sin notas",
+                        modifier = Modifier.size(80.dp).padding(bottom = 16.dp),
+                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f)
+                    )
                     Text(
                         text = if (searchQuery.isBlank()) "Todavía no hay notas. ¡Añade una!" else "Sin resultados para \"$searchQuery\"",
                         style = MaterialTheme.typography.bodyLarge,
@@ -367,7 +382,7 @@ fun HomeScreen(
 }
 
 // ==========================================
-// SAFE ZONE SCREEN (Aislado)
+// SAFE ZONE SCREEN
 // ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -392,21 +407,17 @@ fun SafeZoneScreen(
         }
     }
 
-    // Diseño de Bóveda (Diferenciado por detalles rojos)
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
-            FloatingActionButton(
+            ExtendedFloatingActionButton(
                 onClick = onAddNote,
-                shape = CircleShape,
-                containerColor = MaterialTheme.colorScheme.errorContainer // Rojo
-            ) {
-                Icon(
-                    Icons.Default.Add, 
-                    contentDescription = "Añadir Nota Secreta",
-                    tint = MaterialTheme.colorScheme.onErrorContainer
-                )
-            }
+                icon = { Icon(Icons.Default.Lock, "Añadir Secreto") },
+                text = { Text("Nuevo secreto") },
+                containerColor = MaterialTheme.colorScheme.errorContainer,
+                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                shape = RoundedCornerShape(16.dp)
+            )
         }
     ) { innerPadding ->
         Column(
@@ -457,9 +468,14 @@ fun SafeZoneScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 ),
                                 modifier = Modifier.fillMaxWidth(),
-                                cursorBrush = SolidColor(MaterialTheme.colorScheme.error), // Cursor Rojo
+                                cursorBrush = SolidColor(MaterialTheme.colorScheme.error),
                                 singleLine = true
                             )
+                        }
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(24.dp)) {
+                                Icon(Icons.Default.Close, contentDescription = "Limpiar", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
                     }
                 }
@@ -475,7 +491,7 @@ fun SafeZoneScreen(
                     IconButton(onClick = onSettingsClick) {
                         Icon(
                             imageVector = Icons.Default.Settings,
-                            contentDescription = "Configuración Zona Segura",
+                            contentDescription = "Configuración",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -488,16 +504,26 @@ fun SafeZoneScreen(
                     .padding(horizontal = 20.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                Icon(
+                    imageVector = Icons.Default.Shield,
+                    contentDescription = "Bóveda",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(28.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = "Zona Segura",
                     style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.error, // Título rojo
+                    color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.weight(1f)
                 )
 
-                TextButton(onClick = onDeactivateSafeZone) {
-                    Icon(Icons.Default.Lock, contentDescription = "Salir", modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
+                TextButton(
+                    onClick = onDeactivateSafeZone,
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Icon(Icons.Default.ExitToApp, contentDescription = "Salir", modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text("Cerrar")
                 }
             }
@@ -505,10 +531,17 @@ fun SafeZoneScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             if (filteredNotes.isEmpty()) {
-                Box(
+                Column(
                     modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Security,
+                        contentDescription = "Bóveda vacía",
+                        modifier = Modifier.size(80.dp).padding(bottom = 16.dp),
+                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.3f)
+                    )
                     Text(
                         text = if (searchQuery.isBlank()) "Bóveda vacía. ¡Añade tu primer secreto!" else "Sin resultados para \"$searchQuery\"",
                         style = MaterialTheme.typography.bodyLarge,
@@ -565,18 +598,31 @@ fun NoteCard(note: Note, onClick: () -> Unit) {
                     overflow = TextOverflow.Ellipsis
                 )
             }
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = if (note.isSecret) Icons.Default.VpnKey else Icons.Default.Description,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = (if (note.isSecret) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant).copy(alpha = 0.5f)
+                )
+            }
         }
     }
 }
 
 // ==========================================
-// EDITOR SCREEN (Auto-guardado Real-time)
+// EDITOR SCREEN
 // ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditorScreen(
     editingNote: Note?,
-    isSecret: Boolean, // Para saber qué color aplicar al cursor
+    isSecret: Boolean, 
     onSave: (id: String, title: String, body: String) -> Unit,
     onDelete: (id: String) -> Unit,
     onNavigateBack: () -> Unit
@@ -586,7 +632,6 @@ fun EditorScreen(
     var bodyText by remember { mutableStateOf(editingNote?.body ?: "") }
     var isDeleted by remember { mutableStateOf(false) }
 
-    // Color del cursor dependiendo de si es normal o secreto
     val cursorColor = if (isSecret) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
 
     BackHandler {
@@ -609,6 +654,12 @@ fun EditorScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = {}) {
+                        Icon(Icons.Default.PushPin, contentDescription = "Fijar", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    IconButton(onClick = {}) {
+                        Icon(Icons.Default.Palette, contentDescription = "Color", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     if (editingNote != null) {
                         IconButton(onClick = { 
                             isDeleted = true
@@ -650,7 +701,6 @@ fun EditorScreen(
                     value = titleText,
                     onValueChange = { 
                         titleText = it 
-                        // Auto-guardado en TIEMPO REAL
                         if (!isDeleted) onSave(currentNoteId, titleText.trim(), bodyText.trim())
                     },
                     textStyle = TextStyle(
@@ -679,7 +729,6 @@ fun EditorScreen(
                     value = bodyText,
                     onValueChange = { 
                         bodyText = it 
-                        // Auto-guardado en TIEMPO REAL
                         if (!isDeleted) onSave(currentNoteId, titleText.trim(), bodyText.trim())
                     },
                     textStyle = TextStyle(
@@ -694,6 +743,9 @@ fun EditorScreen(
     }
 }
 
+// ==========================================
+// SETTINGS SCREEN
+// ==========================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -722,6 +774,7 @@ fun SettingsScreen(
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
+            icon = { Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
             title = { Text(if (currentPassword.isEmpty()) "Crear Zona Segura" else "Cambiar Contraseña") },
             text = {
                 Column {
@@ -732,6 +785,7 @@ fun SettingsScreen(
                         onValueChange = { inputPassword = it },
                         label = { Text("Contraseña secreta") },
                         singleLine = true,
+                        leadingIcon = { Icon(Icons.Default.VpnKey, contentDescription = null) },
                         modifier = Modifier.fillMaxWidth()
                     )
                     if (currentPassword.isNotEmpty()) {
@@ -778,7 +832,7 @@ fun SettingsScreen(
                 .padding(innerPadding)
                 .fillMaxSize()
         ) {
-            Spacer(modifier = Modifier.height(100.dp))
+            Spacer(modifier = Modifier.height(60.dp))
             
             Text(
                 text = "Ajustes",
@@ -812,6 +866,19 @@ fun SettingsScreen(
                                     .padding(horizontal = 20.dp, vertical = 16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Fingerprint,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(8.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(16.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         "Bloqueo por huella", 
@@ -835,8 +902,10 @@ fun SettingsScreen(
                         }
                         
                         SettingItem(
-                            title = if (currentPassword.isEmpty()) "Crear Zona Segura" else "Cambiar / Eliminar Contraseña", 
+                            title = if (currentPassword.isEmpty()) "Crear Zona Segura" else "Cambiar Contraseña", 
                             subtitle = if (currentPassword.isEmpty()) "Inactiva (Toca para crear)" else "Activa (La Zona Segura está protegida)",
+                            icon = Icons.Default.EnhancedEncryption,
+                            iconTint = if (currentPassword.isEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                             onClick = { 
                                 inputPassword = currentPassword
                                 showDialog = true 
@@ -845,9 +914,21 @@ fun SettingsScreen(
                         Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
                     }
 
-                    SettingItem(title = "Acerca de la app", subtitle = "yNotes desarrollada para ti", onClick = {})
+                    SettingItem(
+                        title = "Acerca de la app", 
+                        subtitle = "yNotes desarrollada para ti", 
+                        icon = Icons.Default.Info,
+                        iconTint = MaterialTheme.colorScheme.primary,
+                        onClick = {}
+                    )
                     Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
-                    SettingItem(title = "Versión", subtitle = "1.0.0 (AMOLED Edition)", onClick = {})
+                    SettingItem(
+                        title = "Versión", 
+                        subtitle = "1.0.0 (AMOLED Edition)", 
+                        icon = Icons.Default.Build,
+                        iconTint = MaterialTheme.colorScheme.primary,
+                        onClick = {}
+                    )
                 }
             }
         }
@@ -855,23 +936,39 @@ fun SettingsScreen(
 }
 
 @Composable
-fun SettingItem(title: String, subtitle: String, onClick: () -> Unit) {
-    Column(
+fun SettingItem(title: String, subtitle: String, icon: ImageVector, iconTint: androidx.compose.ui.graphics.Color, onClick: () -> Unit) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(horizontal = 20.dp, vertical = 16.dp)
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Surface(
+            shape = CircleShape,
+            color = iconTint.copy(alpha = 0.1f),
+            modifier = Modifier.size(40.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconTint,
+                modifier = Modifier.padding(8.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
