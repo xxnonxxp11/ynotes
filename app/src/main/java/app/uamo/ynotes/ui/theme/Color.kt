@@ -1,4 +1,4 @@
-package com.example.ynotes.ui.theme
+package app.uamo.ynotes.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

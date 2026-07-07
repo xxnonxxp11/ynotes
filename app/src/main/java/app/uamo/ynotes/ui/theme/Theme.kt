@@ -1,4 +1,4 @@
-package com.example.ynotes.ui.theme
+package app.uamo.ynotes.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme

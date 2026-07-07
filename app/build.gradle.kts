@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.ynotes"
+    namespace = "app.uamo.ynotes"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.ynotes"
+        applicationId = "app.uamo.ynotes"
         minSdk = 24
         targetSdk = 34
         versionCode = 1

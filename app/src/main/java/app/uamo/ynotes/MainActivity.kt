@@ -1,4 +1,4 @@
-package com.example.ynotes
+package app.uamo.ynotes
 
 import android.content.Context
 import android.os.Bundle
@@ -33,7 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ynotes.ui.theme.YNotesTheme
+import app.uamo.ynotes.ui.theme.YNotesTheme
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.util.UUID
@@ -51,6 +51,7 @@ sealed class Screen {
     object SafeZoneHome : Screen()
     data class Editor(val note: Note? = null, val isSecret: Boolean = false) : Screen()
     data class Settings(val isFromSafeZone: Boolean) : Screen()
+    object Books : Screen()
 }
 
 class MainActivity : FragmentActivity() {
@@ -147,7 +148,13 @@ fun NotesApp() {
                 onDeactivateSafeZone = { currentScreen = Screen.Home },
                 onAddNote = { currentScreen = Screen.Editor(note = null, isSecret = true) },
                 onNoteClick = { note -> currentScreen = Screen.Editor(note = note, isSecret = true) },
-                onSettingsClick = { currentScreen = Screen.Settings(isFromSafeZone = true) }
+                onSettingsClick = { currentScreen = Screen.Settings(isFromSafeZone = true) },
+                onBooksClick = { currentScreen = Screen.Books }
+            )
+        }
+        is Screen.Books -> {
+            BooksScreen(
+                onNavigateBack = { currentScreen = Screen.SafeZoneHome }
             )
         }
         is Screen.Settings -> {
@@ -401,7 +408,8 @@ fun SafeZoneScreen(
     onDeactivateSafeZone: () -> Unit,
     onAddNote: () -> Unit,
     onNoteClick: (Note) -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    onBooksClick: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
@@ -487,6 +495,23 @@ fun SafeZoneScreen(
                                 Icon(Icons.Default.Close, contentDescription = "Limpiar", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Surface(
+                    modifier = Modifier.size(52.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    tonalElevation = 0.dp
+                ) {
+                    IconButton(onClick = onBooksClick) {
+                        Icon(
+                            imageVector = Icons.Default.Book,
+                            contentDescription = "Sistema de Libros",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
 
@@ -775,7 +800,7 @@ fun SettingsScreen(
         biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL) == BiometricManager.BIOMETRIC_SUCCESS
     }
 
-    val showSecurityOptions = currentPassword.isEmpty() || isSafeZoneActive
+    val showSecurityOptions = true
 
     BackHandler {
         onNavigateBack()
@@ -992,26 +1017,34 @@ fun WelcomeScreen(onStart: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(24.dp),
+            .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(
-            imageVector = Icons.Default.Menu,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(64.dp).padding(bottom = 16.dp)
-        )
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer,
+            modifier = Modifier.size(100.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.padding(24.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(32.dp))
         Text(
             text = "Bienvenido a yNotes",
-            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.ExtraBold),
             color = MaterialTheme.colorScheme.onBackground
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Tus notas rápidas con un secreto.",
+            text = "Captura tus ideas rápidamente y protege tus secretos en la Zona Segura.",
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
         Spacer(modifier = Modifier.height(48.dp))
         
@@ -1023,22 +1056,36 @@ fun WelcomeScreen(onStart: () -> Unit) {
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            Column(modifier = Modifier.padding(24.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = "Zona Segura",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
+            Row(
+                modifier = Modifier.padding(24.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Security, 
+                        contentDescription = null, 
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.padding(12.dp)
                     )
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "Crea tu Zona Segura desde los Ajustes. Para acceder a ella más tarde, simplemente busca tu contraseña secreta en la barra de búsqueda principal.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text(
+                        text = "Zona Segura",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Busca tu contraseña secreta para acceder.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
         
@@ -1056,10 +1103,55 @@ fun WelcomeScreen(onStart: () -> Unit) {
             )
         ) {
             Text(
-                text = "Comenzar",
+                text = "Empezar",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
             )
         }
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+// ==========================================
+// BOOKS SYSTEM SCREEN
+// ==========================================
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BooksScreen(onNavigateBack: () -> Unit) {
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
+                ),
+                title = { Text("Sistema de Libros", style = MaterialTheme.typography.titleLarge) },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Atrás")
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Book,
+                contentDescription = "Sin libros",
+                modifier = Modifier.size(80.dp).padding(bottom = 16.dp),
+                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f)
+            )
+            Text(
+                text = "Tu sistema de libros está vacío.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+            )
+        }
     }
 }
