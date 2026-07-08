@@ -11,19 +11,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80,
-    background = AmoledBlack,
-    surface = AmoledBlack,
-    surfaceVariant = SamsungCardGray,
-    onSurfaceVariant = SamsungTextGray
+    primary = DarkPrimary,
+    background = DarkBackground,
+    surface = DarkSurface,
+    surfaceVariant = DarkSurfaceVariant,
+    onSurface = DarkOnSurface,
+    onSurfaceVariant = DarkOnSurfaceVariant,
+    outlineVariant = DarkOutline
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+    primary = LightPrimary,
+    background = LightBackground,
+    surface = LightSurface,
+    surfaceVariant = LightSurfaceVariant,
+    onSurface = LightOnSurface,
+    onSurfaceVariant = LightOnSurfaceVariant,
+    outlineVariant = LightOutline
 )
 
 @Composable
@@ -36,12 +40,7 @@ fun YNotesTheme(
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) {
-                dynamicDarkColorScheme(context).copy(
-                    background = AmoledBlack,
-                    surface = AmoledBlack,
-                    surfaceVariant = SamsungCardGray,
-                    onSurfaceVariant = SamsungTextGray
-                )
+                dynamicDarkColorScheme(context)
             } else {
                 dynamicLightColorScheme(context)
             }

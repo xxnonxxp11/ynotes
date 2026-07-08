@@ -32,6 +32,7 @@ fun NoteCard(note: NoteEntity, onClick: () -> Unit) {
         colors = CardDefaults.cardColors(
             containerColor = cardColor
         ),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -43,7 +44,7 @@ fun NoteCard(note: NoteEntity, onClick: () -> Unit) {
                 if (note.title.isNotEmpty()) {
                     Text(
                         text = note.title,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
