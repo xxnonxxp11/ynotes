@@ -28,23 +28,26 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun YNotesTheme(
-    // Force dark mode regardless of system settings
-    darkTheme: Boolean = true,
+    darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
-            // Extract dynamic colors but override backgrounds for AMOLED effect
-            dynamicDarkColorScheme(context).copy(
-                background = AmoledBlack,
-                surface = AmoledBlack,
-                surfaceVariant = SamsungCardGray,
-                onSurfaceVariant = SamsungTextGray
-            )
+            if (darkTheme) {
+                dynamicDarkColorScheme(context).copy(
+                    background = AmoledBlack,
+                    surface = AmoledBlack,
+                    surfaceVariant = SamsungCardGray,
+                    onSurfaceVariant = SamsungTextGray
+                )
+            } else {
+                dynamicLightColorScheme(context)
+            }
         }
-        else -> DarkColorScheme
+        darkTheme -> DarkColorScheme
+        else -> LightColorScheme
     }
 
     MaterialTheme(

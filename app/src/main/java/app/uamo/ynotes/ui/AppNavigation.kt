@@ -197,6 +197,35 @@ fun AppNavigation(
                 onDeleteBook = { id ->
                     viewModel.deleteBook(id)
                 },
+                onBookClick = { bookId ->
+                    navController.navigate("book_notes/$bookId")
+                },
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(
+            route = "book_notes/{bookId}",
+            arguments = listOf(navArgument("bookId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val bookId = backStackEntry.arguments?.getString("bookId") ?: return@composable
+            val books by viewModel.books.collectAsState()
+            val book = books.find { it.id == bookId } ?: return@composable
+
+            val allNotes = if (book.isSecret) secretNotes else publicNotes
+            val bookNotes = allNotes.filter { it.bookId == bookId }
+
+            BookNotesScreen(
+                book = book,
+                notes = bookNotes,
+                onNoteClick = { note ->
+                    navController.navigate("editor/${if (book.isSecret) "secret" else "public"}/${note.id}")
+                },
+                onAddNote = {
+                    navController.navigate("editor/${if (book.isSecret) "secret" else "public"}/new")
+                },
                 onNavigateBack = {
                     navController.popBackStack()
                 }

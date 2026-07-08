@@ -67,6 +67,8 @@ fun EditorScreen(
     val cursorColor = if (isSecret) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
     val backgroundColor = if (noteColor == 0L) MaterialTheme.colorScheme.background else Color(noteColor.toULong())
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+
     BackHandler {
         onNavigateBack()
     }
@@ -87,6 +89,18 @@ fun EditorScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = {
+                        val sendIntent = android.content.Intent().apply {
+                            action = android.content.Intent.ACTION_SEND
+                            putExtra(android.content.Intent.EXTRA_TITLE, titleText)
+                            putExtra(android.content.Intent.EXTRA_TEXT, "$titleText\n\n$bodyText")
+                            type = "text/plain"
+                        }
+                        val shareIntent = android.content.Intent.createChooser(sendIntent, null)
+                        context.startActivity(shareIntent)
+                    }) {
+                        Icon(Icons.Default.Share, contentDescription = "Compartir", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     Box {
                         IconButton(onClick = { showBookMenu = true }) {
                             Icon(Icons.Default.Folder, contentDescription = "Libro", tint = if (bookId != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)

@@ -27,6 +27,7 @@ fun BooksScreen(
     books: List<BookEntity>,
     onAddBook: (name: String, color: Long) -> Unit,
     onDeleteBook: (String) -> Unit,
+    onBookClick: (String) -> Unit,
     onNavigateBack: () -> Unit
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
@@ -76,7 +77,7 @@ fun BooksScreen(
                 ) {
                     items(books, key = { it.id }) { book ->
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().clickable { onBookClick(book.id) },
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(
                                 containerColor = if (book.color == 0L) MaterialTheme.colorScheme.surfaceVariant else Color(book.color.toULong())
