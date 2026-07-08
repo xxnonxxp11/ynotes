@@ -396,7 +396,7 @@ fun SafeZoneScreen(
                             )
                         }
                         items(pinnedNotes, key = { it.id }) { note ->
-                            NoteCard(note = note, onClick = { onNoteClick(note) })
+                            NoteCard(note = note, onClick = onNoteClick)
                         }
                     }
 
@@ -412,7 +412,7 @@ fun SafeZoneScreen(
                             }
                         }
                         items(unpinnedNotes, key = { it.id }) { note ->
-                            NoteCard(note = note, onClick = { onNoteClick(note) })
+                            NoteCard(note = note, onClick = onNoteClick)
                         }
                     }
                 }

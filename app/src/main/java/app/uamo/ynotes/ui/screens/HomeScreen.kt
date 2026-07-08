@@ -10,7 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -195,7 +195,7 @@ fun HomeScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.EditNote,
+                        imageVector = Icons.Outlined.Description,
                         contentDescription = "Sin notas",
                         modifier = Modifier.size(80.dp).padding(bottom = 16.dp),
                         tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f)
@@ -224,7 +224,7 @@ fun HomeScreen(
                             )
                         }
                         items(pinnedNotes, key = { it.id }) { note ->
-                            NoteCard(note = note, onClick = { onNoteClick(note) })
+                            NoteCard(note = note, onClick = onNoteClick)
                         }
                     }
 
@@ -240,7 +240,7 @@ fun HomeScreen(
                             }
                         }
                         items(unpinnedNotes, key = { it.id }) { note ->
-                            NoteCard(note = note, onClick = { onNoteClick(note) })
+                            NoteCard(note = note, onClick = onNoteClick)
                         }
                     }
                 }

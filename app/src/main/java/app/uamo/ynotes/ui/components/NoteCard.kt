@@ -20,19 +20,18 @@ import app.uamo.ynotes.data.NoteEntity
 import app.uamo.ynotes.utils.parseMarkdown
 
 @Composable
-fun NoteCard(note: NoteEntity, onClick: () -> Unit) {
+fun NoteCard(note: NoteEntity, onClick: (NoteEntity) -> Unit) {
     val cardColor = if (note.color == 0L) MaterialTheme.colorScheme.surfaceVariant else Color(note.color.toULong())
     
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
-            .clickable { onClick() },
+            .clickable { onClick(note) },
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = cardColor
         ),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -44,7 +43,7 @@ fun NoteCard(note: NoteEntity, onClick: () -> Unit) {
                 if (note.title.isNotEmpty()) {
                     Text(
                         text = note.title,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
