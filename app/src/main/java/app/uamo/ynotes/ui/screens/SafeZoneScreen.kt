@@ -415,6 +415,8 @@ fun SafeZoneScreen(
                             NoteCard(note = note, onClick = { onNoteClick(note) })
                         }
                     }
+                }
+            }
         }
     }
 }
