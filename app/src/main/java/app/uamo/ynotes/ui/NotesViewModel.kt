@@ -6,10 +6,9 @@ import androidx.lifecycle.viewModelScope
 import app.uamo.ynotes.data.BookEntity
 import app.uamo.ynotes.data.NoteDatabase
 import app.uamo.ynotes.data.NoteEntity
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -17,40 +16,33 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     private val noteDao = NoteDatabase.getDatabase(application).noteDao()
 
-    private val _publicNotes = MutableStateFlow<List<NoteEntity>>(emptyList())
-    val publicNotes: StateFlow<List<NoteEntity>> = _publicNotes.asStateFlow()
+    val publicNotes: StateFlow<List<NoteEntity>> = noteDao.getPublicNotes()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
-    private val _secretNotes = MutableStateFlow<List<NoteEntity>>(emptyList())
-    val secretNotes: StateFlow<List<NoteEntity>> = _secretNotes.asStateFlow()
+    val secretNotes: StateFlow<List<NoteEntity>> = noteDao.getSecretNotes()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
-    private val _deletedNotes = MutableStateFlow<List<NoteEntity>>(emptyList())
-    val deletedNotes: StateFlow<List<NoteEntity>> = _deletedNotes.asStateFlow()
+    val deletedNotes: StateFlow<List<NoteEntity>> = noteDao.getDeletedNotes()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
-    private val _books = MutableStateFlow<List<BookEntity>>(emptyList())
-    val books: StateFlow<List<BookEntity>> = _books.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            noteDao.getPublicNotes().collectLatest { notes ->
-                _publicNotes.value = notes
-            }
-        }
-        viewModelScope.launch {
-            noteDao.getSecretNotes().collectLatest { notes ->
-                _secretNotes.value = notes
-            }
-        }
-        viewModelScope.launch {
-            noteDao.getDeletedNotes().collectLatest { notes ->
-                _deletedNotes.value = notes
-            }
-        }
-        viewModelScope.launch {
-            noteDao.getAllBooks().collectLatest { booksList ->
-                _books.value = booksList
-            }
-        }
-    }
+    val books: StateFlow<List<BookEntity>> = noteDao.getAllBooks()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
     fun saveNote(
         id: String?, 
