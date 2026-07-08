@@ -34,22 +34,27 @@ fun AppNavigation(
     
     val executor = ContextCompat.getMainExecutor(context)
     val onRequestSafeZone: () -> Unit = {
-        if (isBiometricEnabled.value && activity != null) {
-            val biometricPrompt = BiometricPrompt(activity, executor,
-                object : BiometricPrompt.AuthenticationCallback() {
-                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                        super.onAuthenticationSucceeded(result)
-                        navController.navigate("safe_zone")
-                    }
-                })
+        if (activity != null) {
+            val biometricManager = BiometricManager.from(context)
+            if (biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL) == BiometricManager.BIOMETRIC_SUCCESS) {
+                val biometricPrompt = BiometricPrompt(activity, executor,
+                    object : BiometricPrompt.AuthenticationCallback() {
+                        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                            super.onAuthenticationSucceeded(result)
+                            navController.navigate("safe_zone")
+                        }
+                    })
 
-            val promptInfo = BiometricPrompt.PromptInfo.Builder()
-                .setTitle("Zona Segura")
-                .setSubtitle("Confirma tu identidad para acceder")
-                .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
-                .build()
+                val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                    .setTitle("Zona Segura")
+                    .setSubtitle("Confirma tu identidad para acceder")
+                    .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+                    .build()
 
-            biometricPrompt.authenticate(promptInfo)
+                biometricPrompt.authenticate(promptInfo)
+            } else {
+                navController.navigate("safe_zone")
+            }
         } else {
             navController.navigate("safe_zone")
         }

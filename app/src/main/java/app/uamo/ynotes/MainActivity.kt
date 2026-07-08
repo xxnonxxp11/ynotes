@@ -39,29 +39,59 @@ class MainActivity : FragmentActivity() {
                     val hasSeenWelcome = sharedPref.getBoolean("HAS_SEEN_WELCOME", false)
                     val startDestination = if (hasSeenWelcome) "home" else "welcome"
 
-                    AppNavigation(
-                        viewModel = notesViewModel,
-                        startDestination = startDestination,
-                        safeZonePassword = safeZonePassword,
-                        isBiometricEnabled = isBiometricEnabled,
-                        onSaveSafeZonePassword = { newPwd ->
-                            val editor = sharedPref.edit()
-                            if (safeZonePassword.value.isEmpty() && newPwd.isNotEmpty()) {
-                                editor.putBoolean("BIOMETRIC_ENABLED", true)
-                                isBiometricEnabled.value = true
+                    var isAuthenticated by remember { mutableStateOf(!isBiometricEnabled.value) }
+
+                    if (!isAuthenticated) {
+                        androidx.compose.runtime.LaunchedEffect(Unit) {
+                            val biometricManager = androidx.biometric.BiometricManager.from(this@MainActivity)
+                            if (biometricManager.canAuthenticate(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG or androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL) == androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS) {
+                                val executor = androidx.core.content.ContextCompat.getMainExecutor(this@MainActivity)
+                                val biometricPrompt = androidx.biometric.BiometricPrompt(this@MainActivity, executor, object : androidx.biometric.BiometricPrompt.AuthenticationCallback() {
+                                    override fun onAuthenticationSucceeded(result: androidx.biometric.BiometricPrompt.AuthenticationResult) {
+                                        isAuthenticated = true
+                                    }
+                                    override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                                        if (errorCode != androidx.biometric.BiometricPrompt.ERROR_USER_CANCELED) {
+                                            // Handle other errors or let user retry
+                                            finish()
+                                        } else {
+                                            finish() // If they cancel, exit app
+                                        }
+                                    }
+                                })
+                                val promptInfo = androidx.biometric.BiometricPrompt.PromptInfo.Builder()
+                                    .setTitle("Desbloquear yNotes")
+                                    .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG or androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+                                    .build()
+                                biometricPrompt.authenticate(promptInfo)
+                            } else {
+                                isAuthenticated = true
                             }
-                            editor.putString("SAFE_ZONE_PWD", newPwd)
-                            editor.apply()
-                            safeZonePassword.value = newPwd
-                        },
-                        onBiometricToggle = { enabled ->
-                            sharedPref.edit().putBoolean("BIOMETRIC_ENABLED", enabled).apply()
-                            isBiometricEnabled.value = enabled
-                        },
-                        onWelcomeCompleted = {
-                            sharedPref.edit().putBoolean("HAS_SEEN_WELCOME", true).apply()
                         }
-                    )
+                        // Blank screen while authenticating
+                        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {}
+                    } else {
+                        AppNavigation(
+                            viewModel = notesViewModel,
+                            startDestination = startDestination,
+                            safeZonePassword = safeZonePassword,
+                            isBiometricEnabled = isBiometricEnabled,
+                            onSaveSafeZonePassword = { newPwd ->
+                                val editor = sharedPref.edit()
+                                // No longer auto-enabling biometric app lock here, just save the password
+                                editor.putString("SAFE_ZONE_PWD", newPwd)
+                                editor.apply()
+                                safeZonePassword.value = newPwd
+                            },
+                            onBiometricToggle = { enabled ->
+                                sharedPref.edit().putBoolean("BIOMETRIC_ENABLED", enabled).apply()
+                                isBiometricEnabled.value = enabled
+                            },
+                            onWelcomeCompleted = {
+                                sharedPref.edit().putBoolean("HAS_SEEN_WELCOME", true).apply()
+                            }
+                        )
+                    }
                 }
             }
         }

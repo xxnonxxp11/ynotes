@@ -159,7 +159,7 @@ fun SettingsScreen(
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        if (canAuthenticate) "Usa huella para entrar a la zona segura" else "No disponible en este dispositivo", 
+                                        if (canAuthenticate) "Usa huella para abrir la aplicación" else "No disponible en este dispositivo", 
                                         style = MaterialTheme.typography.bodyMedium, 
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
