@@ -173,6 +173,49 @@ fun SettingsScreen(
                             Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
                         }
                         
+                        var isAppHiderEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("ENABLE_APP_HIDER", true)) }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Apps,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(8.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Ocultador de Apps", 
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), 
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    "Mostrar sección de apps en la Zona Segura", 
+                                    style = MaterialTheme.typography.bodyMedium, 
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = isAppHiderEnabled,
+                                onCheckedChange = { 
+                                    isAppHiderEnabled = it
+                                    sharedPrefs.edit().putBoolean("ENABLE_APP_HIDER", it).apply()
+                                }
+                            )
+                        }
+                        Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
+                        
                         SettingItem(
                             title = if (currentPassword.isEmpty()) "Crear Zona Segura" else "Cambiar Contraseña", 
                             subtitle = if (currentPassword.isEmpty()) "Inactiva (Toca para crear)" else "Activa (La Zona Segura está protegida)",
