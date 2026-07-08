@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -222,7 +223,7 @@ fun SafeZoneScreen(
                         }
                         IconButton(onClick = onBooksClick) {
                             Icon(
-                                imageVector = Icons.Default.Folder,
+                                imageVector = Icons.Default.MenuBook,
                                 contentDescription = "Libros",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )

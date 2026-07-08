@@ -8,6 +8,6 @@ data class BookEntity(
     @PrimaryKey val id: String,
     val name: String,
     val color: Long = 0L,
-    val iconName: String = "Book",
+    val iconName: String = "MenuBook",
     val isSecret: Boolean = false
 )

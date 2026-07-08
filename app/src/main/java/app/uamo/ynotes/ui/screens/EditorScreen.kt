@@ -103,7 +103,7 @@ fun EditorScreen(
                     }
                     Box {
                         IconButton(onClick = { showBookMenu = true }) {
-                            Icon(Icons.Default.Folder, contentDescription = "Libro", tint = if (bookId != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(Icons.Default.MenuBook, contentDescription = "Libro", tint = if (bookId != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         DropdownMenu(
                             expanded = showBookMenu,

@@ -88,7 +88,7 @@ fun AppNavigation(
                     navController.navigate("settings/home")
                 },
                 onBooksClick = {
-                    navController.navigate("books")
+                    navController.navigate("books/public")
                 },
                 onTrashClick = {
                     navController.navigate("trash")
@@ -114,7 +114,7 @@ fun AppNavigation(
                     navController.navigate("settings/safe_zone")
                 },
                 onBooksClick = {
-                    navController.navigate("books")
+                    navController.navigate("books/secret")
                 },
                 onTrashClick = {
                     navController.navigate("trash")
@@ -192,12 +192,19 @@ fun AppNavigation(
             )
         }
 
-        composable("books") {
-            val books by viewModel.books.collectAsState()
+        composable(
+            route = "books/{zone}",
+            arguments = listOf(navArgument("zone") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val zone = backStackEntry.arguments?.getString("zone") ?: "public"
+            val isSecret = zone == "secret"
+            val allBooks by viewModel.books.collectAsState()
+            val books = allBooks.filter { it.isSecret == isSecret }
+            
             BooksScreen(
                 books = books,
                 onAddBook = { name, color ->
-                    viewModel.saveBook(id = null, name = name, color = color, iconName = "Folder")
+                    viewModel.saveBook(id = null, name = name, color = color, iconName = "MenuBook", isSecret = isSecret)
                 },
                 onDeleteBook = { id ->
                     viewModel.deleteBook(id)

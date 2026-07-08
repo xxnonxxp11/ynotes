@@ -150,7 +150,7 @@ fun HomeScreen(
                         }
                         IconButton(onClick = onBooksClick) {
                             Icon(
-                                imageVector = Icons.Default.Folder,
+                                imageVector = Icons.Default.MenuBook,
                                 contentDescription = "Libros",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
