@@ -18,8 +18,8 @@ data class AppInfo(
 
 fun getInstalledApps(context: Context): List<AppInfo> {
     val pm = context.packageManager
-    val intent = Intent(Intent.ACTION_MAIN, null).apply {
-        addCategory(Intent.category.LAUNCHER)
+    val intent = Intent(Intent.ACTION_MAIN).apply {
+        addCategory(Intent.CATEGORY_LAUNCHER)
     }
     val resolveInfos = pm.queryIntentActivities(intent, 0)
     
