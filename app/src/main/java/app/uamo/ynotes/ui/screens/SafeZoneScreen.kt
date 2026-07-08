@@ -73,8 +73,8 @@ fun SafeZoneScreen(
         }
     }
 
-    val pinnedNotes = filteredNotes.filter { it.isPinned }
-    val unpinnedNotes = filteredNotes.filter { !it.isPinned }
+    val pinnedNotes = remember(filteredNotes) { filteredNotes.filter { it.isPinned } }
+    val unpinnedNotes = remember(filteredNotes) { filteredNotes.filter { !it.isPinned } }
 
     LaunchedEffect(showAppPicker) {
         if (showAppPicker && allInstalledApps.isEmpty()) {
