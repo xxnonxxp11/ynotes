@@ -170,7 +170,7 @@ fun SettingsScreen(
                                     enabled = canAuthenticate
                                 )
                             }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
+                            Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
                         }
                         
                         SettingItem(
@@ -183,7 +183,7 @@ fun SettingsScreen(
                                 showDialog = true 
                             }
                         )
-                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
+                        Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
                     }
 
                     SettingItem(
@@ -193,7 +193,7 @@ fun SettingsScreen(
                         iconTint = MaterialTheme.colorScheme.primary,
                         onClick = {}
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
+                    Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
                     SettingItem(
                         title = "Versión", 
                         subtitle = "1.0.0 (AMOLED Edition)", 

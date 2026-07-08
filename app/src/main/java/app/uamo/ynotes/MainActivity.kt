@@ -3,7 +3,6 @@ package app.uamo.ynotes
 import android.content.Context
 import android.os.Bundle
 import androidx.activity.compose.setContent
-import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -11,18 +10,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.viewmodel.compose.viewModel
 import app.uamo.ynotes.ui.AppNavigation
 import app.uamo.ynotes.ui.NotesViewModel
 import app.uamo.ynotes.ui.theme.YNotesTheme
 
 class MainActivity : FragmentActivity() {
 
-    private val notesViewModel: NotesViewModel by viewModels()
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             YNotesTheme {
+                val notesViewModel: NotesViewModel = viewModel()
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
