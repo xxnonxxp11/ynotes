@@ -186,12 +186,14 @@ fun SettingsScreen(
                         Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
                     }
 
+                    var showAboutDialog by remember { mutableStateOf(false) }
+
                     SettingItem(
                         title = "Acerca de la app", 
                         subtitle = "yNotes desarrollada para ti", 
                         icon = Icons.Default.Info,
                         iconTint = MaterialTheme.colorScheme.primary,
-                        onClick = {}
+                        onClick = { showAboutDialog = true }
                     )
                     Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
                     SettingItem(
@@ -199,8 +201,26 @@ fun SettingsScreen(
                         subtitle = "1.0.0 (AMOLED Edition)", 
                         icon = Icons.Default.Build,
                         iconTint = MaterialTheme.colorScheme.primary,
-                        onClick = {}
+                        onClick = {
+                            android.widget.Toast.makeText(context, "yNotes 1.0 (AMOLED Edition) está actualizada", android.widget.Toast.LENGTH_SHORT).show()
+                        }
                     )
+
+                    if (showAboutDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showAboutDialog = false },
+                            icon = { Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                            title = { Text("Acerca de yNotes") },
+                            text = { 
+                                Text("yNotes es una aplicación de notas centrada en la privacidad y el diseño premium.\n\nDesarrollada para ofrecer la mejor experiencia visual y mantener tus secretos verdaderamente seguros.")
+                            },
+                            confirmButton = {
+                                TextButton(onClick = { showAboutDialog = false }) {
+                                    Text("Cerrar")
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }

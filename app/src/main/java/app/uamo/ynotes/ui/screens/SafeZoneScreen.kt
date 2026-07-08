@@ -416,6 +416,56 @@ fun SafeZoneScreen(
                         }
                     }
                 }
+            if (showAppPicker) {
+                LaunchedEffect(Unit) {
+                    if (allInstalledApps.isEmpty()) {
+                        allInstalledApps = withContext(Dispatchers.IO) {
+                            getInstalledApps(context)
+                        }
+                    }
+                }
+                AlertDialog(
+                    onDismissRequest = { showAppPicker = false },
+                    title = { Text("Seleccionar Apps Ocultas") },
+                    text = {
+                        if (allInstalledApps.isEmpty()) {
+                            Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
+                        } else {
+                            LazyColumn {
+                                items(allInstalledApps, key = { it.packageName }) { app ->
+                                    val isSelected = hiddenAppPackages.contains(app.packageName)
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                val newSet = hiddenAppPackages.toMutableSet()
+                                                if (isSelected) newSet.remove(app.packageName)
+                                                else newSet.add(app.packageName)
+                                                
+                                                sharedPref.edit().putStringSet("HIDDEN_APPS", newSet).apply()
+                                                hiddenAppPackages = newSet
+                                            }
+                                            .padding(vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Checkbox(checked = isSelected, onCheckedChange = null)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Image(bitmap = app.icon, contentDescription = null, modifier = Modifier.size(32.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(app.name, modifier = Modifier.weight(1f))
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showAppPicker = false }) {
+                            Text("Cerrar")
+                        }
+                    }
+                )
             }
         }
     }

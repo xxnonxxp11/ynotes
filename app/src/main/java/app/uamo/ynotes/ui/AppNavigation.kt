@@ -251,6 +251,9 @@ fun AppNavigation(
                 onRestore = { id ->
                     viewModel.restoreFromTrash(id)
                 },
+                onDeletePermanently = { id ->
+                    viewModel.deleteNotePermanently(id)
+                },
                 onEmptyTrash = {
                     viewModel.emptyTrash()
                 },
