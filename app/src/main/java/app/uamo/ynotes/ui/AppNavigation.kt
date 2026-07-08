@@ -2,7 +2,7 @@ package app.uamo.ynotes.ui
 
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.collectAsState
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -28,8 +28,8 @@ fun AppNavigation(
     val context = LocalContext.current
     val activity = context as? FragmentActivity
     
-    val publicNotes by viewModel.publicNotes.collectAsStateWithLifecycle()
-    val secretNotes by viewModel.secretNotes.collectAsStateWithLifecycle()
+    val publicNotes by viewModel.publicNotes.collectAsState()
+    val secretNotes by viewModel.secretNotes.collectAsState()
     
     val executor = ContextCompat.getMainExecutor(context)
     val onRequestSafeZone: () -> Unit = {
