@@ -81,6 +81,12 @@ fun AppNavigation(
                 },
                 onSettingsClick = {
                     navController.navigate("settings/home")
+                },
+                onBooksClick = {
+                    navController.navigate("books")
+                },
+                onTrashClick = {
+                    navController.navigate("trash")
                 }
             )
         }
@@ -104,6 +110,9 @@ fun AppNavigation(
                 },
                 onBooksClick = {
                     navController.navigate("books")
+                },
+                onTrashClick = {
+                    navController.navigate("trash")
                 }
             )
         }
@@ -124,11 +133,23 @@ fun AppNavigation(
                 else publicNotes.find { it.id == noteId }
             } else null
 
+            val books by viewModel.books.collectAsState()
+
             EditorScreen(
                 editingNote = editingNote,
                 isSecret = isSecret,
-                onSave = { id, title, body ->
-                    viewModel.saveNote(id, title, body, isSecret)
+                books = books.filter { it.isSecret == isSecret },
+                onSave = { id, title, body, color, isPinned, bookId ->
+                    viewModel.saveNote(
+                        id = id, 
+                        title = title, 
+                        body = body, 
+                        isSecret = isSecret,
+                        color = color,
+                        isPinned = isPinned,
+                        bookId = bookId,
+                        existingCreatedAt = editingNote?.createdAt
+                    )
                 },
                 onDelete = { id ->
                     viewModel.deleteNote(id)
@@ -167,7 +188,31 @@ fun AppNavigation(
         }
 
         composable("books") {
+            val books by viewModel.books.collectAsState()
             BooksScreen(
+                books = books,
+                onAddBook = { name, color ->
+                    viewModel.saveBook(id = null, name = name, color = color, iconName = "Folder")
+                },
+                onDeleteBook = { id ->
+                    viewModel.deleteBook(id)
+                },
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable("trash") {
+            val deletedNotes by viewModel.deletedNotes.collectAsState()
+            TrashScreen(
+                deletedNotes = deletedNotes,
+                onRestore = { id ->
+                    viewModel.restoreFromTrash(id)
+                },
+                onEmptyTrash = {
+                    viewModel.emptyTrash()
+                },
                 onNavigateBack = {
                     navController.popBackStack()
                 }

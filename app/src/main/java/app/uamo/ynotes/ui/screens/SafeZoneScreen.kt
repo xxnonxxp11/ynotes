@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -30,7 +31,8 @@ fun SafeZoneScreen(
     onAddNote: () -> Unit,
     onNoteClick: (NoteEntity) -> Unit,
     onSettingsClick: () -> Unit,
-    onBooksClick: () -> Unit
+    onBooksClick: () -> Unit,
+    onTrashClick: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
@@ -45,6 +47,9 @@ fun SafeZoneScreen(
             it.body.contains(searchQuery, ignoreCase = true)
         }
     }
+
+    val pinnedNotes = filteredNotes.filter { it.isPinned }
+    val unpinnedNotes = filteredNotes.filter { !it.isPinned }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -122,34 +127,33 @@ fun SafeZoneScreen(
                 Spacer(modifier = Modifier.width(10.dp))
 
                 Surface(
-                    modifier = Modifier.size(52.dp),
-                    shape = CircleShape,
+                    modifier = Modifier.height(52.dp),
+                    shape = RoundedCornerShape(50.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     tonalElevation = 0.dp
                 ) {
-                    IconButton(onClick = onBooksClick) {
-                        Icon(
-                            imageVector = Icons.Default.Book,
-                            contentDescription = "Sistema de Libros",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                Surface(
-                    modifier = Modifier.size(52.dp),
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    tonalElevation = 0.dp
-                ) {
-                    IconButton(onClick = onSettingsClick) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Configuración",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onTrashClick) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Papelera",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(onClick = onBooksClick) {
+                            Icon(
+                                imageVector = Icons.Default.Folder,
+                                contentDescription = "Libros",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(onClick = onSettingsClick) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Configuración",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
@@ -212,8 +216,34 @@ fun SafeZoneScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalItemSpacing = 12.dp
                 ) {
-                    items(filteredNotes, key = { it.id }) { note ->
-                        NoteCard(note = note, onClick = { onNoteClick(note) })
+                    if (pinnedNotes.isNotEmpty()) {
+                        item(span = StaggeredGridItemSpan.FullLine) {
+                            Text(
+                                "FIJADAS", 
+                                style = MaterialTheme.typography.labelMedium, 
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 4.dp, bottom = 4.dp, top = 8.dp)
+                            )
+                        }
+                        items(pinnedNotes, key = { it.id }) { note ->
+                            NoteCard(note = note, onClick = { onNoteClick(note) })
+                        }
+                    }
+
+                    if (unpinnedNotes.isNotEmpty()) {
+                        if (pinnedNotes.isNotEmpty()) {
+                            item(span = StaggeredGridItemSpan.FullLine) {
+                                Text(
+                                    "OTRAS", 
+                                    style = MaterialTheme.typography.labelMedium, 
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp, top = 16.dp)
+                                )
+                            }
+                        }
+                        items(unpinnedNotes, key = { it.id }) { note ->
+                            NoteCard(note = note, onClick = { onNoteClick(note) })
+                        }
                     }
                 }
             }

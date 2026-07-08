@@ -1,7 +1,12 @@
 package app.uamo.ynotes.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -9,40 +14,69 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.uamo.ynotes.data.BookEntity
 import app.uamo.ynotes.data.NoteEntity
-import java.util.UUID
+
+val NoteColors = listOf(
+    0L, // Default
+    0xFFFFCDD2, // Red
+    0xFFF8BBD0, // Pink
+    0xFFE1BEE7, // Purple
+    0xFFD1C4E9, // Deep Purple
+    0xFFC5CAE9, // Indigo
+    0xFFBBDEFB, // Blue
+    0xFFB2EBF2, // Cyan
+    0xFFB2DFDB, // Teal
+    0xFFC8E6C9, // Green
+    0xFFDCEDC8, // Light Green
+    0xFFF0F4C3, // Lime
+    0xFFFFF9C4, // Yellow
+    0xFFFFECB3, // Amber
+    0xFFFFE0B2, // Orange
+    0xFFFFCCBC  // Deep Orange
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditorScreen(
     editingNote: NoteEntity?,
     isSecret: Boolean, 
-    onSave: (id: String?, title: String, body: String) -> Unit,
+    books: List<BookEntity>,
+    onSave: (id: String?, title: String, body: String, color: Long, isPinned: Boolean, bookId: String?) -> Unit,
     onDelete: (id: String) -> Unit,
     onNavigateBack: () -> Unit
 ) {
     val currentNoteId = remember { editingNote?.id }
     var titleText by remember { mutableStateOf(editingNote?.title ?: "") }
     var bodyText by remember { mutableStateOf(editingNote?.body ?: "") }
+    var noteColor by remember { mutableStateOf(editingNote?.color ?: 0L) }
+    var isPinned by remember { mutableStateOf(editingNote?.isPinned ?: false) }
+    var bookId by remember { mutableStateOf(editingNote?.bookId) }
     var isDeleted by remember { mutableStateOf(false) }
 
+    var showColorPicker by remember { mutableStateOf(false) }
+    var showBookMenu by remember { mutableStateOf(false) }
+
     val cursorColor = if (isSecret) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+    val backgroundColor = if (noteColor == 0L) MaterialTheme.colorScheme.background else Color(noteColor.toULong())
 
     BackHandler {
         onNavigateBack()
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = backgroundColor,
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = backgroundColor,
                     navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
                     actionIconContentColor = MaterialTheme.colorScheme.primary,
                 ),
@@ -53,10 +87,45 @@ fun EditorScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = {}) {
-                        Icon(Icons.Default.PushPin, contentDescription = "Fijar", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Box {
+                        IconButton(onClick = { showBookMenu = true }) {
+                            Icon(Icons.Default.Folder, contentDescription = "Libro", tint = if (bookId != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        DropdownMenu(
+                            expanded = showBookMenu,
+                            onDismissRequest = { showBookMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Sin libro") },
+                                onClick = { 
+                                    bookId = null
+                                    showBookMenu = false
+                                    if (!isDeleted) onSave(currentNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId)
+                                }
+                            )
+                            books.forEach { book ->
+                                DropdownMenuItem(
+                                    text = { Text(book.name) },
+                                    onClick = {
+                                        bookId = book.id
+                                        showBookMenu = false
+                                        if (!isDeleted) onSave(currentNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId)
+                                    }
+                                )
+                            }
+                        }
                     }
-                    IconButton(onClick = {}) {
+                    IconButton(onClick = { 
+                        isPinned = !isPinned
+                        if (!isDeleted) onSave(currentNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId)
+                    }) {
+                        Icon(
+                            if (isPinned) Icons.Default.PushPin else Icons.Default.PushPin,
+                            contentDescription = "Fijar", 
+                            tint = if (isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    IconButton(onClick = { showColorPicker = !showColorPicker }) {
                         Icon(Icons.Default.Palette, contentDescription = "Color", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (editingNote != null) {
@@ -83,60 +152,81 @@ fun EditorScreen(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .padding(horizontal = 24.dp)
         ) {
-            Box(contentAlignment = Alignment.CenterStart) {
-                if (titleText.isEmpty()) {
-                    Text(
-                        text = "Título",
-                        style = TextStyle(
+            if (showColorPicker) {
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(NoteColors) { colorValue ->
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(if (colorValue == 0L) MaterialTheme.colorScheme.surfaceVariant else Color(colorValue.toULong()))
+                                .clickable {
+                                    noteColor = colorValue
+                                    if (!isDeleted) onSave(currentNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId)
+                                }
+                        )
+                    }
+                }
+            }
+            
+            Column(modifier = Modifier.padding(horizontal = 24.dp).weight(1f)) {
+                Box(contentAlignment = Alignment.CenterStart) {
+                    if (titleText.isEmpty()) {
+                        Text(
+                            text = "Título",
+                            style = TextStyle(
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                            )
+                        )
+                    }
+                    BasicTextField(
+                        value = titleText,
+                        onValueChange = { 
+                            titleText = it 
+                            if (!isDeleted) onSave(currentNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId)
+                        },
+                        textStyle = TextStyle(
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                        )
+                            color = MaterialTheme.colorScheme.onBackground
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        cursorBrush = SolidColor(cursorColor)
                     )
                 }
-                BasicTextField(
-                    value = titleText,
-                    onValueChange = { 
-                        titleText = it 
-                        if (!isDeleted) onSave(currentNoteId, titleText.trim(), bodyText.trim())
-                    },
-                    textStyle = TextStyle(
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                    cursorBrush = SolidColor(cursorColor)
-                )
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            Box(modifier = Modifier.fillMaxSize()) {
-                if (bodyText.isEmpty()) {
-                    Text(
-                        text = "Escribe tu nota...",
-                        style = TextStyle(
+                Box(modifier = Modifier.fillMaxSize()) {
+                    if (bodyText.isEmpty()) {
+                        Text(
+                            text = "Escribe tu nota...",
+                            style = TextStyle(
+                                fontSize = 16.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                            )
+                        )
+                    }
+                    BasicTextField(
+                        value = bodyText,
+                        onValueChange = { 
+                            bodyText = it 
+                            if (!isDeleted) onSave(currentNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId)
+                        },
+                        textStyle = TextStyle(
                             fontSize = 16.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                        )
+                            color = MaterialTheme.colorScheme.onBackground
+                        ),
+                        modifier = Modifier.fillMaxSize(),
+                        cursorBrush = SolidColor(cursorColor)
                     )
                 }
-                BasicTextField(
-                    value = bodyText,
-                    onValueChange = { 
-                        bodyText = it 
-                        if (!isDeleted) onSave(currentNoteId, titleText.trim(), bodyText.trim())
-                    },
-                    textStyle = TextStyle(
-                        fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.onBackground
-                    ),
-                    modifier = Modifier.fillMaxSize(),
-                    cursorBrush = SolidColor(cursorColor)
-                )
             }
         }
     }
