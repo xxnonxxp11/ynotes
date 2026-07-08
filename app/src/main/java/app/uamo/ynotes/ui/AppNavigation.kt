@@ -22,7 +22,8 @@ fun AppNavigation(
     safeZonePassword: MutableState<String>,
     isBiometricEnabled: MutableState<Boolean>,
     onSaveSafeZonePassword: (String) -> Unit,
-    onBiometricToggle: (Boolean) -> Unit
+    onBiometricToggle: (Boolean) -> Unit,
+    onWelcomeCompleted: () -> Unit
 ) {
     val navController = rememberNavController()
     val context = LocalContext.current
@@ -59,6 +60,7 @@ fun AppNavigation(
         composable("welcome") {
             WelcomeScreen(
                 onStart = {
+                    onWelcomeCompleted()
                     navController.navigate("home") {
                         popUpTo("welcome") { inclusive = true }
                     }

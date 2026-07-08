@@ -34,9 +34,13 @@ fun SafeZoneScreen(
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
-    val filteredNotes = remember(notes, searchQuery) {
-        if (searchQuery.isBlank()) notes
-        else notes.filter {
+    val visibleNotes = remember(notes) {
+        notes.filter { it.isSecret }
+    }
+
+    val filteredNotes = remember(visibleNotes, searchQuery) {
+        if (searchQuery.isBlank()) visibleNotes
+        else visibleNotes.filter {
             it.title.contains(searchQuery, ignoreCase = true) ||
             it.body.contains(searchQuery, ignoreCase = true)
         }
