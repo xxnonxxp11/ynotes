@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.uamo.ynotes.data.NoteEntity
+import app.uamo.ynotes.utils.parseMarkdown
 
 @Composable
 fun NoteCard(note: NoteEntity, onClick: () -> Unit) {
@@ -61,10 +62,11 @@ fun NoteCard(note: NoteEntity, onClick: () -> Unit) {
                     )
                 }
             }
+
             if (note.body.isNotEmpty()) {
                 if (note.title.isNotEmpty()) Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = note.body,
+                    text = parseMarkdown(note.body, MaterialTheme.colorScheme.onSurfaceVariant),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 4,

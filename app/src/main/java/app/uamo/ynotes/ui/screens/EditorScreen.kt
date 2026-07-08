@@ -238,7 +238,8 @@ fun EditorScreen(
                             color = MaterialTheme.colorScheme.onBackground
                         ),
                         modifier = Modifier.fillMaxSize(),
-                        cursorBrush = SolidColor(cursorColor)
+                        cursorBrush = SolidColor(cursorColor),
+                        visualTransformation = app.uamo.ynotes.utils.MarkdownVisualTransformation(MaterialTheme.colorScheme.onBackground)
                     )
                 }
             }
