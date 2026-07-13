@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -41,6 +42,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun SafeZoneScreen(
     notes: List<NoteEntity>,
+    isAppHidingEnabled: Boolean,
     onDeactivateSafeZone: () -> Unit,
     onAddNote: () -> Unit,
     onNoteClick: (NoteEntity) -> Unit,
@@ -61,6 +63,7 @@ fun SafeZoneScreen(
     var allInstalledApps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
     var isLoadingApps by remember { mutableStateOf(false) }
     var showAppPicker by remember { mutableStateOf(false) }
+    var isAppsListExpanded by remember { mutableStateOf(true) }
 
     val visibleNotes = remember(notes) {
         notes.filter { it.isSecret }
@@ -269,55 +272,92 @@ fun SafeZoneScreen(
                 }
             }
 
-            if (hiddenAppPackages.isNotEmpty() || showAppPicker) {
-                // If we don't have the apps loaded but we have packages, we should load them silently to show the icons
-                LaunchedEffect(hiddenAppPackages) {
-                    if (allInstalledApps.isEmpty() && hiddenAppPackages.isNotEmpty()) {
-                        allInstalledApps = withContext(Dispatchers.IO) {
-                            getInstalledApps(context)
+            if (isAppHidingEnabled) {
+                if (hiddenAppPackages.isNotEmpty() || showAppPicker) {
+                    // If we don't have the apps loaded but we have packages, we should load them silently to show the icons
+                    LaunchedEffect(hiddenAppPackages) {
+                        if (allInstalledApps.isEmpty() && hiddenAppPackages.isNotEmpty()) {
+                            allInstalledApps = withContext(Dispatchers.IO) {
+                                getInstalledApps(context)
+                            }
                         }
                     }
-                }
 
-                val appsToShow = allInstalledApps.filter { hiddenAppPackages.contains(it.packageName) }
-                
-                LazyRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    items(appsToShow, key = { it.packageName }) { app ->
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier
-                                .clickable {
-                                    val launchIntent = context.packageManager.getLaunchIntentForPackage(app.packageName)
-                                    if (launchIntent != null) {
-                                        context.startActivity(launchIntent)
-                                    }
-                                }
-                                .padding(4.dp)
-                        ) {
-                            Image(
-                                bitmap = app.icon,
-                                contentDescription = app.name,
-                                modifier = Modifier.size(48.dp).clip(RoundedCornerShape(12.dp))
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = app.name, 
-                                style = MaterialTheme.typography.bodySmall, 
-                                color = MaterialTheme.colorScheme.onBackground,
-                                maxLines = 1,
-                                modifier = Modifier.width(60.dp),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                            )
-                        }
+                    val appsToShow = allInstalledApps.filter { hiddenAppPackages.contains(it.packageName) }
+                    
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { isAppsListExpanded = !isAppsListExpanded }
+                            .padding(horizontal = 20.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Apps,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Aplicaciones Ocultas",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Icon(
+                            imageVector = if (isAppsListExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Desplegar",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
+
+                    if (isAppsListExpanded) {
+                        LazyRow(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            items(appsToShow, key = { it.packageName }) { app ->
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier
+                                        .clickable {
+                                            val launchIntent = context.packageManager.getLaunchIntentForPackage(app.packageName)
+                                            if (launchIntent != null) {
+                                                context.startActivity(launchIntent)
+                                            }
+                                        }
+                                        .padding(4.dp)
+                                ) {
+                                    Image(
+                                        bitmap = app.icon,
+                                        contentDescription = app.name,
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .graphicsLayer {
+                                                rotationX = 15f
+                                                rotationY = -15f
+                                                shadowElevation = 8.dp.toPx()
+                                                shape = RoundedCornerShape(12.dp)
+                                                clip = true
+                                            }
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = app.name, 
+                                        style = MaterialTheme.typography.bodySmall, 
+                                        color = MaterialTheme.colorScheme.onBackground,
+                                        maxLines = 1,
+                                        modifier = Modifier.width(60.dp),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
                     
                     item {
                         Column(
@@ -345,9 +385,10 @@ fun SafeZoneScreen(
                                 color = MaterialTheme.colorScheme.onBackground
                             )
                         }
+                        }
                     }
+                    Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f), modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
                 }
-                Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f), modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
             } else {
                 TextButton(
                     onClick = { showAppPicker = true },

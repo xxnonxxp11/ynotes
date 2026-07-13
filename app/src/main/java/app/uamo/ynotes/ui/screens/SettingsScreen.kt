@@ -29,7 +29,9 @@ fun SettingsScreen(
     currentTriggerMode: Int,
     onSaveSafeZone: (String, Int) -> Unit,
     isBiometricEnabled: Boolean,
+    isAppHidingEnabled: Boolean,
     onBiometricToggle: (Boolean) -> Unit,
+    onAppHidingToggle: (Boolean) -> Unit,
     onNavigateBack: () -> Unit
 ) {
     var showDialog by remember { mutableStateOf(false) }
@@ -202,6 +204,45 @@ fun SettingsScreen(
                                     checked = isBiometricEnabled,
                                     onCheckedChange = onBiometricToggle,
                                     enabled = canAuthenticate
+                                )
+                            }
+                            Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
+                            
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Apps,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(8.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        "Aplicaciones Ocultas", 
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), 
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        if (isAppHidingEnabled) "El sistema está activado" else "El sistema está desactivado", 
+                                        style = MaterialTheme.typography.bodyMedium, 
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = isAppHidingEnabled,
+                                    onCheckedChange = onAppHidingToggle
                                 )
                             }
                             Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))

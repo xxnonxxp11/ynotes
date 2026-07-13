@@ -22,8 +22,10 @@ fun AppNavigation(
     safeZonePassword: MutableState<String>,
     safeZoneTriggerMode: State<Int>,
     isBiometricEnabled: MutableState<Boolean>,
+    isAppHidingEnabled: MutableState<Boolean>,
     onSaveSafeZone: (String, Int) -> Unit,
     onBiometricToggle: (Boolean) -> Unit,
+    onAppHidingToggle: (Boolean) -> Unit,
     onWelcomeCompleted: () -> Unit
 ) {
     val navController = rememberNavController()
@@ -101,9 +103,10 @@ fun AppNavigation(
         composable("safe_zone") {
             SafeZoneScreen(
                 notes = secretNotes,
+                isAppHidingEnabled = isAppHidingEnabled.value,
                 onDeactivateSafeZone = {
                     navController.navigate("home") {
-                        popUpTo("home") { inclusive = true }
+                        popUpTo(0) { inclusive = true }
                     }
                 },
                 onAddNote = {
@@ -187,8 +190,12 @@ fun AppNavigation(
                     }
                 },
                 isBiometricEnabled = isBiometricEnabled.value,
+                isAppHidingEnabled = isAppHidingEnabled.value,
                 onBiometricToggle = { enabled ->
                     onBiometricToggle(enabled)
+                },
+                onAppHidingToggle = { enabled ->
+                    onAppHidingToggle(enabled)
                 },
                 onNavigateBack = {
                     navController.popBackStack()

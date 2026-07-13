@@ -44,6 +44,8 @@ class MainActivity : FragmentActivity() {
                     
                     val hasSeenWelcome = sharedPref.getBoolean("HAS_SEEN_WELCOME", false)
                     val startDestination = if (hasSeenWelcome) "home" else "welcome"
+                    
+                    val isAppHidingEnabled = remember { mutableStateOf(sharedPref.getBoolean("APP_HIDING_ENABLED", true)) }
 
                     var isAuthenticated by remember { mutableStateOf(!isBiometricEnabled.value) }
 
@@ -83,6 +85,7 @@ class MainActivity : FragmentActivity() {
                             safeZonePassword = safeZonePassword,
                             safeZoneTriggerMode = safeZoneTriggerMode,
                             isBiometricEnabled = isBiometricEnabled,
+                            isAppHidingEnabled = isAppHidingEnabled,
                             onSaveSafeZone = { newPwd, mode ->
                                 val editor = sharedPref.edit()
                                 editor.putString("SAFE_ZONE_PWD", newPwd)
@@ -94,6 +97,10 @@ class MainActivity : FragmentActivity() {
                             onBiometricToggle = { enabled ->
                                 sharedPref.edit().putBoolean("BIOMETRIC_ENABLED", enabled).apply()
                                 isBiometricEnabled.value = enabled
+                            },
+                            onAppHidingToggle = { enabled ->
+                                sharedPref.edit().putBoolean("APP_HIDING_ENABLED", enabled).apply()
+                                isAppHidingEnabled.value = enabled
                             },
                             onWelcomeCompleted = {
                                 sharedPref.edit().putBoolean("HAS_SEEN_WELCOME", true).apply()
