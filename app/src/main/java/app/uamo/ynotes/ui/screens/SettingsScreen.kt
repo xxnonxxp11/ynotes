@@ -9,6 +9,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,6 +24,7 @@ import androidx.compose.ui.unit.sp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
+    isFromSafeZone: Boolean,
     currentPassword: String,
     currentTriggerMode: Int,
     onSaveSafeZone: (String, Int) -> Unit,
@@ -39,7 +42,10 @@ fun SettingsScreen(
         biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL) == BiometricManager.BIOMETRIC_SUCCESS
     }
 
-    val showSecurityOptions = true
+    // Separa las opciones: en la zona normal solo vemos "Crear" (si no existe). 
+    // En la zona segura vemos "Configurar" y "Huella".
+    val isSafeZoneCreated = currentPassword.isNotEmpty()
+    val showSecurityOptions = if (isFromSafeZone) true else !isSafeZoneCreated
 
     BackHandler {
         onNavigateBack()
@@ -101,44 +107,53 @@ fun SettingsScreen(
         )
     }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
-                ),
-                title = { },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Atrás")
-                    }
-                }
-            )
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
-        ) {
-            Spacer(modifier = Modifier.height(60.dp))
-            
-            Text(
-                text = "Ajustes",
-                style = TextStyle(
-                    fontSize = 42.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                ),
-                modifier = Modifier.padding(horizontal = 24.dp)
-            )
-            
-            Spacer(modifier = Modifier.height(32.dp))
+    val dynamicColorScheme = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        if (androidx.compose.foundation.isSystemInDarkTheme()) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+    } else {
+        MaterialTheme.colorScheme
+    }
+    
+    val colorScheme = if (isFromSafeZone) MaterialTheme.colorScheme else dynamicColorScheme
 
-            Card(
+    MaterialTheme(colorScheme = colorScheme) {
+        Scaffold(
+            containerColor = MaterialTheme.colorScheme.background,
+            topBar = {
+                TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
+                    ),
+                    title = { },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Atrás")
+                        }
+                    }
+                )
+            }
+        ) { innerPadding ->
+            Column(
                 modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize()
+            ) {
+                Spacer(modifier = Modifier.height(60.dp))
+                
+                Text(
+                    text = if (isFromSafeZone) "Zona Segura" else "Ajustes",
+                    style = TextStyle(
+                        fontSize = 42.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    ),
+                    modifier = Modifier.padding(horizontal = 24.dp)
+                )
+                
+                Spacer(modifier = Modifier.height(32.dp))
+    
+                Card(
+                    modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp),
                 shape = RoundedCornerShape(24.dp),
@@ -224,6 +239,7 @@ fun SettingsScreen(
             }
         }
     }
+}
 }
 
 @Composable

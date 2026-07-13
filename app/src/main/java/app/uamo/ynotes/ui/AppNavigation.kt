@@ -175,6 +175,7 @@ fun AppNavigation(
             val isFromSafeZone = from == "safe_zone"
             
             SettingsScreen(
+                isFromSafeZone = isFromSafeZone,
                 currentPassword = safeZonePassword.value,
                 currentTriggerMode = safeZoneTriggerMode.value,
                 onSaveSafeZone = { newPwd, mode ->
