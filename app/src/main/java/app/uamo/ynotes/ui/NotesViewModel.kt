@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.map
+import app.uamo.ynotes.utils.CryptoManager
 import java.util.UUID
 
 class NotesViewModel(application: Application) : AndroidViewModel(application) {
@@ -24,6 +26,14 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         )
 
     val secretNotes: StateFlow<List<NoteEntity>> = noteDao.getSecretNotes()
+        .map { notes -> 
+            notes.map { note ->
+                note.copy(
+                    title = CryptoManager.decrypt(note.title),
+                    body = CryptoManager.decrypt(note.body)
+                )
+            }
+        }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -31,6 +41,18 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         )
 
     val deletedNotes: StateFlow<List<NoteEntity>> = noteDao.getDeletedNotes()
+        .map { notes -> 
+            notes.map { note ->
+                if (note.isSecret) {
+                    note.copy(
+                        title = CryptoManager.decrypt(note.title),
+                        body = CryptoManager.decrypt(note.body)
+                    )
+                } else {
+                    note
+                }
+            }
+        }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -59,12 +81,15 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         val noteId = id ?: UUID.randomUUID().toString()
         val currentTime = System.currentTimeMillis()
         
+        val finalTitle = if (isSecret) CryptoManager.encrypt(title) else title
+        val finalBody = if (isSecret) CryptoManager.encrypt(body) else body
+        
         viewModelScope.launch {
             noteDao.insertNote(
                 NoteEntity(
                     id = noteId,
-                    title = title,
-                    body = body,
+                    title = finalTitle,
+                    body = finalBody,
                     isSecret = isSecret,
                     color = color,
                     createdAt = existingCreatedAt ?: currentTime,
