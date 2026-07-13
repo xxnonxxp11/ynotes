@@ -62,14 +62,23 @@ fun HomeScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onAddNote,
-                icon = { Icon(Icons.Default.Edit, "Añadir Nota") },
-                text = { Text("Nueva nota") },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = RoundedCornerShape(16.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .padding(end = 8.dp, bottom = 8.dp)
+                    .background(
+                        brush = app.uamo.ynotes.ui.theme.AuroraPrimary,
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                    .clickable { onAddNote() }
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Edit, "Añadir Nota", tint = Color.White)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Nueva nota", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
         }
     ) { innerPadding ->
         Column(

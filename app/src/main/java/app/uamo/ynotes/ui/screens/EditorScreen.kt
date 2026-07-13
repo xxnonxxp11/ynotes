@@ -168,21 +168,37 @@ fun EditorScreen(
                 .fillMaxSize()
         ) {
             if (showColorPicker) {
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp)
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    items(NoteColors) { colorValue ->
+                    NoteColors.forEach { colorValue ->
                         Box(
                             modifier = Modifier
-                                .size(40.dp)
+                                .size(44.dp)
                                 .clip(CircleShape)
                                 .background(if (colorValue == 0L) MaterialTheme.colorScheme.surfaceVariant else Color(colorValue.toULong()))
-                                .clickable {
+                                        .border(
+                                    width = if (noteColor == colorValue) 3.dp else 1.dp,
+                                    color = if (noteColor == colorValue) MaterialTheme.colorScheme.primary else app.uamo.ynotes.ui.theme.GlassBorder,
+                                    shape = CircleShape
+                                )
+                                .clickable { 
                                     noteColor = colorValue
                                     if (!isDeleted) onSave(currentNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId)
                                 }
-                        )
+                        ) {
+                            if (noteColor == colorValue) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Color.Black.copy(alpha = 0.2f))
+                                )
+                            }
+                        }
                     }
                 }
             }

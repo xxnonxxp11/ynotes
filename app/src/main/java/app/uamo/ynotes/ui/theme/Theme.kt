@@ -11,23 +11,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = DarkPrimary,
-    background = DarkBackground,
-    surface = DarkSurface,
-    surfaceVariant = DarkSurfaceVariant,
-    onSurface = DarkOnSurface,
-    onSurfaceVariant = DarkOnSurfaceVariant,
-    outlineVariant = DarkOutline
+    primary = PrimaryAccent,
+    secondary = SecondaryAccent,
+    tertiary = TertiaryAccent,
+    background = AmoledBlack,
+    surface = AmoledBlack, // Base surface is black, we'll use GlassSurface for cards
+    surfaceVariant = GlassSurface,
+    onSurface = TextPrimary,
+    onSurfaceVariant = TextSecondary,
+    outline = GlassBorder
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = LightPrimary,
-    background = LightBackground,
-    surface = LightSurface,
-    surfaceVariant = LightSurfaceVariant,
-    onSurface = LightOnSurface,
-    onSurfaceVariant = LightOnSurfaceVariant,
-    outlineVariant = LightOutline
+    primary = PrimaryAccent,
+    secondary = SecondaryAccent,
+    tertiary = TertiaryAccent
+    // We force AMOLED dark mode anyway for this app as requested
 )
 
 @Composable
@@ -40,7 +39,14 @@ fun YNotesTheme(
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) {
-                dynamicDarkColorScheme(context)
+                dynamicDarkColorScheme(context).copy(
+                    background = AmoledBlack,
+                    surface = AmoledBlack,
+                    surfaceVariant = GlassSurface,
+                    onSurface = TextPrimary,
+                    onSurfaceVariant = TextSecondary,
+                    outline = GlassBorder
+                )
             } else {
                 dynamicLightColorScheme(context)
             }

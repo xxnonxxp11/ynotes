@@ -19,20 +19,35 @@ import androidx.compose.ui.unit.dp
 import app.uamo.ynotes.data.NoteEntity
 import app.uamo.ynotes.utils.parseMarkdown
 
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.background
+import app.uamo.ynotes.ui.theme.AuroraPrimary
+import app.uamo.ynotes.ui.theme.GlassBorder
+import androidx.compose.foundation.border
+
 @Composable
 fun NoteCard(note: NoteEntity, onClick: (NoteEntity) -> Unit) {
     val cardColor = if (note.color == 0L) MaterialTheme.colorScheme.surfaceVariant else Color(note.color.toULong())
     
+    val baseModifier = Modifier
+        .fillMaxWidth()
+        .clip(RoundedCornerShape(28.dp))
+        .border(1.dp, GlassBorder, RoundedCornerShape(28.dp))
+        .clickable { onClick(note) }
+
+    val finalModifier = if (note.isPinned) {
+        baseModifier.background(AuroraPrimary)
+    } else {
+        baseModifier
+    }
+
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .clickable { onClick(note) },
-        shape = RoundedCornerShape(24.dp),
+        modifier = finalModifier,
+        shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(
-            containerColor = cardColor
+            containerColor = if (note.isPinned) Color.Transparent else cardColor
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(
@@ -44,7 +59,7 @@ fun NoteCard(note: NoteEntity, onClick: (NoteEntity) -> Unit) {
                     Text(
                         text = note.title,
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = if (note.isPinned) Color.White else MaterialTheme.colorScheme.onSurface,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
@@ -58,17 +73,18 @@ fun NoteCard(note: NoteEntity, onClick: (NoteEntity) -> Unit) {
                         imageVector = Icons.Default.PushPin,
                         contentDescription = "Fijado",
                         modifier = Modifier.size(16.dp).padding(start = 4.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = Color.White.copy(alpha = 0.8f)
                     )
                 }
             }
 
             if (note.body.isNotEmpty()) {
                 if (note.title.isNotEmpty()) Spacer(modifier = Modifier.height(6.dp))
+                val bodyTextColor = if (note.isPinned) Color.White.copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurfaceVariant
                 Text(
-                    text = parseMarkdown(note.body, MaterialTheme.colorScheme.onSurfaceVariant),
+                    text = parseMarkdown(note.body, bodyTextColor),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = bodyTextColor,
                     maxLines = 4,
                     overflow = TextOverflow.Ellipsis
                 )

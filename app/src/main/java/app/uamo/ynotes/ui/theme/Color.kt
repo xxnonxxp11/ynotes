@@ -1,21 +1,21 @@
 package app.uamo.ynotes.ui.theme
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 
-// Premium Dark Colors
-val DarkBackground = Color(0xFF121212)
-val DarkSurface = Color(0xFF1E1E1E)
-val DarkSurfaceVariant = Color(0xFF2C2C2C)
-val DarkOnSurface = Color(0xFFF5F5F5)
-val DarkOnSurfaceVariant = Color(0xFFA0A0A0)
-val DarkPrimary = Color(0xFF8AB4F8)
-val DarkOutline = Color(0xFF424242)
+// 2026 Core Palette
+val PrimaryAccent = Color(0xFF8B5CF6) // Deep Purple / Indigo
+val SecondaryAccent = Color(0xFF06B6D4) // Cyan / Aqua
+val TertiaryAccent = Color(0xFFEC4899) // Vibrant Pink
 
-// Premium Light Colors
-val LightBackground = Color(0xFFF8F9FA)
-val LightSurface = Color(0xFFFFFFFF)
-val LightSurfaceVariant = Color(0xFFF1F3F4)
-val LightOnSurface = Color(0xFF202124)
-val LightOnSurfaceVariant = Color(0xFF5F6368)
-val LightPrimary = Color(0xFF1A73E8)
-val LightOutline = Color(0xFFDADCE0)
+// Glassmorphism & AMOLED
+val AmoledBlack = Color(0xFF000000)
+val GlassSurface = Color(0x15FFFFFF) // Very subtle translucent white
+val GlassSurfaceHighlight = Color(0x25FFFFFF) 
+val GlassBorder = Color(0x33FFFFFF)
+val TextPrimary = Color(0xFFF3F4F6)
+val TextSecondary = Color(0xFF9CA3AF)
+
+// Aurora Gradients for elements
+val AuroraPrimary = Brush.linearGradient(listOf(Color(0xFF8B5CF6), Color(0xFFEC4899)))
+val AuroraSecondary = Brush.linearGradient(listOf(Color(0xFF06B6D4), Color(0xFF3B82F6)))
