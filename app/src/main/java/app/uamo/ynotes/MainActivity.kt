@@ -34,6 +34,10 @@ class MainActivity : FragmentActivity() {
                         mutableStateOf(sharedPref.getString("SAFE_ZONE_PWD", "") ?: "") 
                     }
                     
+                    val safeZoneTriggerMode = remember {
+                        mutableStateOf(sharedPref.getInt("SAFE_ZONE_TRIGGER_MODE", 0))
+                    }
+                    
                     val isBiometricEnabled = remember {
                         mutableStateOf(sharedPref.getBoolean("BIOMETRIC_ENABLED", false))
                     }
@@ -77,13 +81,15 @@ class MainActivity : FragmentActivity() {
                             viewModel = notesViewModel,
                             startDestination = startDestination,
                             safeZonePassword = safeZonePassword,
+                            safeZoneTriggerMode = safeZoneTriggerMode,
                             isBiometricEnabled = isBiometricEnabled,
-                            onSaveSafeZonePassword = { newPwd ->
+                            onSaveSafeZone = { newPwd, mode ->
                                 val editor = sharedPref.edit()
-                                // No longer auto-enabling biometric app lock here, just save the password
                                 editor.putString("SAFE_ZONE_PWD", newPwd)
+                                editor.putInt("SAFE_ZONE_TRIGGER_MODE", mode)
                                 editor.apply()
                                 safeZonePassword.value = newPwd
+                                safeZoneTriggerMode.value = mode
                             },
                             onBiometricToggle = { enabled ->
                                 sharedPref.edit().putBoolean("BIOMETRIC_ENABLED", enabled).apply()

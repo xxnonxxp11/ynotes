@@ -23,13 +23,15 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun SettingsScreen(
     currentPassword: String,
-    onSavePassword: (String) -> Unit,
+    currentTriggerMode: Int,
+    onSaveSafeZone: (String, Int) -> Unit,
     isBiometricEnabled: Boolean,
     onBiometricToggle: (Boolean) -> Unit,
     onNavigateBack: () -> Unit
 ) {
     var showDialog by remember { mutableStateOf(false) }
     var inputPassword by remember { mutableStateOf("") }
+    var inputMode by remember { mutableStateOf(0) }
     
     val context = LocalContext.current
     val biometricManager = remember { BiometricManager.from(context) }
@@ -47,15 +49,32 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { showDialog = false },
             icon = { Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-            title = { Text(if (currentPassword.isEmpty()) "Crear Zona Segura" else "Cambiar Contraseña") },
+            title = { Text(if (currentPassword.isEmpty()) "Crear Zona Segura" else "Configurar Zona Segura") },
             text = {
                 Column {
-                    Text("Para acceder a la Zona Segura, deberás buscar esta palabra exacta en la barra de búsqueda principal.", style = MaterialTheme.typography.bodySmall)
+                    Text("Selecciona cómo accederás a la Zona Segura:", style = MaterialTheme.typography.bodySmall)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { inputMode = 0 }) {
+                        RadioButton(selected = inputMode == 0, onClick = { inputMode = 0 })
+                        Text("Escribir la contraseña en el buscador", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    if (canAuthenticate) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { inputMode = 1 }) {
+                            RadioButton(selected = inputMode == 1, onClick = { inputMode = 1 })
+                            Text("Mantener presionado Buscar (+ Huella)", style = MaterialTheme.typography.bodyMedium)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { inputMode = 2 }) {
+                            RadioButton(selected = inputMode == 2, onClick = { inputMode = 2 })
+                            Text("Mantener presionado Ajustes (+ Huella)", style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                    
                     Spacer(modifier = Modifier.height(12.dp))
                     OutlinedTextField(
                         value = inputPassword,
                         onValueChange = { inputPassword = it },
-                        label = { Text("Contraseña secreta") },
+                        label = { Text("Contraseña (Requerida)") },
                         singleLine = true,
                         leadingIcon = { Icon(Icons.Default.VpnKey, contentDescription = null) },
                         modifier = Modifier.fillMaxWidth()
@@ -68,7 +87,7 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    onSavePassword(inputPassword.trim())
+                    onSaveSafeZone(inputPassword.trim(), inputMode)
                     showDialog = false
                 }) {
                     Text("Guardar")
@@ -173,49 +192,6 @@ fun SettingsScreen(
                             Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
                         }
                         
-                        var isAppHiderEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("ENABLE_APP_HIDER", true)) }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Apps,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(8.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    "Ocultador de Apps", 
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), 
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    "Mostrar sección de apps en la Zona Segura", 
-                                    style = MaterialTheme.typography.bodyMedium, 
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Switch(
-                                checked = isAppHiderEnabled,
-                                onCheckedChange = { 
-                                    isAppHiderEnabled = it
-                                    sharedPrefs.edit().putBoolean("ENABLE_APP_HIDER", it).apply()
-                                }
-                            )
-                        }
-                        Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
-                        
                         SettingItem(
                             title = if (currentPassword.isEmpty()) "Crear Zona Segura" else "Cambiar Contraseña", 
                             subtitle = if (currentPassword.isEmpty()) "Inactiva (Toca para crear)" else "Activa (La Zona Segura está protegida)",
@@ -229,14 +205,12 @@ fun SettingsScreen(
                         Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
                     }
 
-                    var showAboutDialog by remember { mutableStateOf(false) }
-
                     SettingItem(
                         title = "Acerca de la app", 
                         subtitle = "yNotes desarrollada para ti", 
                         icon = Icons.Default.Info,
                         iconTint = MaterialTheme.colorScheme.primary,
-                        onClick = { showAboutDialog = true }
+                        onClick = {}
                     )
                     Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
                     SettingItem(
@@ -244,26 +218,8 @@ fun SettingsScreen(
                         subtitle = "1.0.0 (AMOLED Edition)", 
                         icon = Icons.Default.Build,
                         iconTint = MaterialTheme.colorScheme.primary,
-                        onClick = {
-                            android.widget.Toast.makeText(context, "yNotes 1.0 (AMOLED Edition) está actualizada", android.widget.Toast.LENGTH_SHORT).show()
-                        }
+                        onClick = {}
                     )
-
-                    if (showAboutDialog) {
-                        AlertDialog(
-                            onDismissRequest = { showAboutDialog = false },
-                            icon = { Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                            title = { Text("Acerca de yNotes") },
-                            text = { 
-                                Text("yNotes es una aplicación de notas centrada en la privacidad y el diseño premium.\n\nDesarrollada para ofrecer la mejor experiencia visual y mantener tus secretos verdaderamente seguros.")
-                            },
-                            confirmButton = {
-                                TextButton(onClick = { showAboutDialog = false }) {
-                                    Text("Cerrar")
-                                }
-                            }
-                        )
-                    }
                 }
             }
         }

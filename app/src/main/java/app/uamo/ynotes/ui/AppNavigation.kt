@@ -20,8 +20,9 @@ fun AppNavigation(
     viewModel: NotesViewModel,
     startDestination: String,
     safeZonePassword: MutableState<String>,
+    safeZoneTriggerMode: State<Int>,
     isBiometricEnabled: MutableState<Boolean>,
-    onSaveSafeZonePassword: (String) -> Unit,
+    onSaveSafeZone: (String, Int) -> Unit,
     onBiometricToggle: (Boolean) -> Unit,
     onWelcomeCompleted: () -> Unit
 ) {
@@ -77,6 +78,7 @@ fun AppNavigation(
             HomeScreen(
                 notes = publicNotes,
                 safeZonePassword = safeZonePassword.value,
+                safeZoneTriggerMode = safeZoneTriggerMode.value,
                 onRequestSafeZone = onRequestSafeZone,
                 onAddNote = {
                     navController.navigate("editor/public/new")
@@ -174,8 +176,9 @@ fun AppNavigation(
             
             SettingsScreen(
                 currentPassword = safeZonePassword.value,
-                onSavePassword = { newPwd ->
-                    onSaveSafeZonePassword(newPwd)
+                currentTriggerMode = safeZoneTriggerMode.value,
+                onSaveSafeZone = { newPwd, mode ->
+                    onSaveSafeZone(newPwd, mode)
                     if (newPwd.isEmpty() && isFromSafeZone) {
                         navController.navigate("home") {
                             popUpTo(0) { inclusive = true }
@@ -250,9 +253,6 @@ fun AppNavigation(
                 deletedNotes = deletedNotes,
                 onRestore = { id ->
                     viewModel.restoreFromTrash(id)
-                },
-                onDeletePermanently = { id ->
-                    viewModel.deleteNotePermanently(id)
                 },
                 onEmptyTrash = {
                     viewModel.emptyTrash()

@@ -8,6 +8,8 @@ import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Description
@@ -28,6 +30,7 @@ import app.uamo.ynotes.ui.components.NoteCard
 fun HomeScreen(
     notes: List<NoteEntity>,
     safeZonePassword: String,
+    safeZoneTriggerMode: Int,
     onRequestSafeZone: () -> Unit,
     onAddNote: () -> Unit,
     onNoteClick: (NoteEntity) -> Unit,
@@ -38,7 +41,7 @@ fun HomeScreen(
     var searchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(searchQuery) {
-        if (safeZonePassword.isNotEmpty() && searchQuery == safeZonePassword) {
+        if (safeZoneTriggerMode == 0 && safeZonePassword.isNotEmpty() && searchQuery == safeZonePassword) {
             searchQuery = "" 
             onRequestSafeZone()
         }
@@ -110,7 +113,13 @@ fun HomeScreen(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Buscar",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(24.dp).pointerInput(Unit) {
+                                detectTapGestures(
+                                    onLongPress = {
+                                        if (safeZoneTriggerMode == 1) onRequestSafeZone()
+                                    }
+                                )
+                            }
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Box(modifier = Modifier.weight(1f)) {
@@ -164,7 +173,19 @@ fun HomeScreen(
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        IconButton(onClick = onSettingsClick) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onTap = { onSettingsClick() },
+                                        onLongPress = {
+                                            if (safeZoneTriggerMode == 2) onRequestSafeZone()
+                                        }
+                                    )
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.Settings,
                                 contentDescription = "Configuración",
