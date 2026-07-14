@@ -25,13 +25,10 @@ jobs:
         gradle-version: 8.7
 
     - name: Build with Gradle
-      run: gradle assembleDebug > build_log.txt 2>&1
-      continue-on-error: true
+      run: gradle assembleDebug
 
-    - name: Commit log
-      run: |
-        git config --global user.name "Actions"
-        git config --global user.email "actions@github.com"
-        git add build_log.txt
-        git commit -m "Add build log" || echo "No changes to commit"
-        git push || echo "Push failed"
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: yNotes-APK
+        path: app/build/outputs/apk/debug/app-debug.apk
