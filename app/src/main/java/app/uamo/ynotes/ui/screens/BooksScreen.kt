@@ -81,8 +81,7 @@ fun BooksScreen(
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(
                                 containerColor = if (book.color == 0L) MaterialTheme.colorScheme.surfaceVariant else Color(book.color.toULong())
-                            ),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                            )
                         ) {
                             Row(
                                 modifier = Modifier

@@ -400,6 +400,7 @@ fun SafeZoneScreen(
                 }
                 Spacer(modifier = Modifier.height(8.dp))
             }
+        }
 
             if (filteredNotes.isEmpty()) {
                 Column(
