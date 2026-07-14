@@ -7,7 +7,7 @@ import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
-import javax.crypto.spec.GcmParameterSpec
+import javax.crypto.spec.GCMParameterSpec
 
 object CryptoManager {
     private const val ALGORITHM = KeyProperties.KEY_ALGORITHM_AES
@@ -71,7 +71,7 @@ object CryptoManager {
             val encryptedText = combined.copyOfRange(12, combined.size)
             
             val cipher = Cipher.getInstance(TRANSFORMATION)
-            val spec = GcmParameterSpec(128, iv)
+            val spec = GCMParameterSpec(128, iv)
             cipher.init(Cipher.DECRYPT_MODE, getSecretKey(), spec)
             
             val decryptedBytes = cipher.doFinal(encryptedText)
