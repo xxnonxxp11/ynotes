@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.uamo.ynotes.data.NoteEntity
 import app.uamo.ynotes.ui.components.NoteCard
+import app.uamo.ynotes.utils.AppCacheManager
 import app.uamo.ynotes.utils.AppInfo
 import app.uamo.ynotes.utils.getInstalledApps
 import kotlinx.coroutines.Dispatchers
@@ -61,10 +62,20 @@ fun SafeZoneScreen(
     var hiddenAppPackages by remember { 
         mutableStateOf(sharedPrefs.getStringSet("HIDDEN_APPS", emptySet())?.toSet() ?: emptySet()) 
     }
+    // Cached hidden apps — loaded instantly from disk
+    var cachedHiddenApps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
+    // All system apps — only loaded when user opens the picker
     var allInstalledApps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
     var isLoadingApps by remember { mutableStateOf(false) }
     var showAppPicker by remember { mutableStateOf(false) }
     var isAppsListExpanded by remember { mutableStateOf(true) }
+
+    // Load cached hidden apps instantly on first composition
+    LaunchedEffect(Unit) {
+        cachedHiddenApps = withContext(Dispatchers.IO) {
+            AppCacheManager.loadHiddenApps(context)
+        }
+    }
 
     val visibleNotes = remember(notes) {
         notes.filter { it.isSecret }
@@ -81,6 +92,7 @@ fun SafeZoneScreen(
     val pinnedNotes = remember(filteredNotes) { filteredNotes.filter { it.isPinned } }
     val unpinnedNotes = remember(filteredNotes) { filteredNotes.filter { !it.isPinned } }
 
+    // Only load ALL system apps when the app picker dialog is opened
     LaunchedEffect(showAppPicker) {
         if (showAppPicker && allInstalledApps.isEmpty()) {
             isLoadingApps = true
@@ -111,6 +123,12 @@ fun SafeZoneScreen(
                                         val newSet = if (isSelected) hiddenAppPackages - app.packageName else hiddenAppPackages + app.packageName
                                         hiddenAppPackages = newSet
                                         sharedPrefs.edit().putStringSet("HIDDEN_APPS", newSet).apply()
+                                        // Update cache with the new hidden apps list
+                                        val updatedCachedApps = allInstalledApps.filter { a -> newSet.contains(a.packageName) }
+                                        cachedHiddenApps = updatedCachedApps
+                                        coroutineScope.launch(Dispatchers.IO) {
+                                            AppCacheManager.saveHiddenApps(context, updatedCachedApps)
+                                        }
                                     }
                                     .padding(vertical = 12.dp, horizontal = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -252,16 +270,8 @@ fun SafeZoneScreen(
 
             if (isAppHidingEnabled) {
                 if (hiddenAppPackages.isNotEmpty() || showAppPicker) {
-                    // If we don't have the apps loaded but we have packages, we should load them silently to show the icons
-                    LaunchedEffect(hiddenAppPackages) {
-                        if (allInstalledApps.isEmpty() && hiddenAppPackages.isNotEmpty()) {
-                            allInstalledApps = withContext(Dispatchers.IO) {
-                                getInstalledApps(context)
-                            }
-                        }
-                    }
-
-                    val appsToShow = allInstalledApps.filter { hiddenAppPackages.contains(it.packageName) }
+                    // Use cached apps for instant display — no need to scan all installed apps
+                    val appsToShow = cachedHiddenApps.filter { hiddenAppPackages.contains(it.packageName) }
                     
                     Row(
                         modifier = Modifier
