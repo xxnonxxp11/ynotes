@@ -40,6 +40,8 @@ fun SettingsScreen(
     var inputMode by remember { mutableStateOf(0) }
     
     val context = LocalContext.current
+    val sharedPrefs = remember { context.getSharedPreferences("yNotesPrefs", android.content.Context.MODE_PRIVATE) }
+    var hideNoteBody by remember { mutableStateOf(sharedPrefs.getBoolean("HIDE_NOTE_BODY", false)) }
     val biometricManager = remember { BiometricManager.from(context) }
     val canAuthenticate = remember {
         biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL) == BiometricManager.BIOMETRIC_SUCCESS
@@ -261,6 +263,48 @@ fun SettingsScreen(
                         )
                         Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
                     }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.VisibilityOff,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Ocultar descripciones", 
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), 
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                "Deberás abrir la nota para ver el contenido", 
+                                style = MaterialTheme.typography.bodyMedium, 
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = hideNoteBody,
+                            onCheckedChange = { 
+                                hideNoteBody = it
+                                sharedPrefs.edit().putBoolean("HIDE_NOTE_BODY", it).apply()
+                            }
+                        )
+                    }
+                    Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
 
                     SettingItem(
                         title = "Acerca de la app", 

@@ -126,50 +126,6 @@ fun EditorScreen(
                 },
                 actions = {
                     IconButton(onClick = {
-                        val sendIntent = android.content.Intent().apply {
-                            action = android.content.Intent.ACTION_SEND
-                            putExtra(android.content.Intent.EXTRA_TITLE, titleText)
-                            putExtra(android.content.Intent.EXTRA_TEXT, "$titleText\n\n$bodyText")
-                            type = "text/plain"
-                        }
-                        val shareIntent = android.content.Intent.createChooser(sendIntent, null)
-                        context.startActivity(shareIntent)
-                    }) {
-                        Icon(Icons.Default.Share, contentDescription = "Compartir", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Box {
-                        IconButton(onClick = { showBookMenu = true }) {
-                            Icon(
-                                Icons.Default.MenuBook,
-                                contentDescription = "Libro",
-                                tint = if (bookId != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = showBookMenu,
-                            onDismissRequest = { showBookMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Sin libro") },
-                                onClick = {
-                                    bookId = null
-                                    showBookMenu = false
-                                    saveNow()
-                                }
-                            )
-                            books.forEach { book ->
-                                DropdownMenuItem(
-                                    text = { Text(book.name) },
-                                    onClick = {
-                                        bookId = book.id
-                                        showBookMenu = false
-                                        saveNow()
-                                    }
-                                )
-                            }
-                        }
-                    }
-                    IconButton(onClick = {
                         isPinned = !isPinned
                         saveNow()
                     }) {
