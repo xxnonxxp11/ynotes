@@ -14,5 +14,6 @@ data class NoteEntity(
     val updatedAt: Long = System.currentTimeMillis(),
     val isPinned: Boolean = false,
     val bookId: String? = null,
-    val isDeleted: Boolean = false
+    val isDeleted: Boolean = false,
+    val isBodyHidden: Boolean = false
 )

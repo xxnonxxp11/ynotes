@@ -190,7 +190,7 @@ fun AppNavigation(
                 editingNote = editingNote,
                 isSecret = isSecret,
                 books = books.filter { it.isSecret == isSecret },
-                onSave = { id, title, body, color, isPinned, bookId ->
+                onSave = { id, title, body, color, isPinned, bookId, isBodyHidden ->
                     // id is always the stableNoteId from EditorScreen (never null)
                     // Preserve createdAt from existing note if it exists
                     val existingCreatedAt = if (isSecret) secretNotes.find { it.id == id }?.createdAt
@@ -203,6 +203,7 @@ fun AppNavigation(
                         color = color,
                         isPinned = isPinned,
                         bookId = bookId,
+                        isBodyHidden = isBodyHidden,
                         existingCreatedAt = existingCreatedAt
                     )
                 },

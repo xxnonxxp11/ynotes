@@ -27,10 +27,6 @@ import androidx.compose.foundation.border
 
 @Composable
 fun NoteCard(note: NoteEntity, onClick: (NoteEntity) -> Unit) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val sharedPrefs = androidx.compose.runtime.remember { context.getSharedPreferences("yNotesPrefs", android.content.Context.MODE_PRIVATE) }
-    val hideNoteBody = sharedPrefs.getBoolean("HIDE_NOTE_BODY", false)
-
     val cardColor = if (note.color == 0L) MaterialTheme.colorScheme.surfaceVariant else Color(note.color.toULong())
     
     val baseModifier = Modifier
@@ -82,7 +78,7 @@ fun NoteCard(note: NoteEntity, onClick: (NoteEntity) -> Unit) {
                 }
             }
 
-            if (note.body.isNotEmpty() && !hideNoteBody) {
+            if (note.body.isNotEmpty() && !note.isBodyHidden) {
                 if (note.title.isNotEmpty()) Spacer(modifier = Modifier.height(6.dp))
                 val bodyTextColor = if (note.isPinned) Color.White.copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurfaceVariant
                 Text(

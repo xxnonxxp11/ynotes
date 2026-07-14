@@ -56,7 +56,7 @@ fun EditorScreen(
     editingNote: NoteEntity?,
     isSecret: Boolean,
     books: List<BookEntity>,
-    onSave: (id: String?, title: String, body: String, color: Long, isPinned: Boolean, bookId: String?) -> Unit,
+    onSave: (id: String?, title: String, body: String, color: Long, isPinned: Boolean, bookId: String?, isBodyHidden: Boolean) -> Unit,
     onDelete: (id: String) -> Unit,
     onNavigateBack: () -> Unit
 ) {
@@ -68,6 +68,7 @@ fun EditorScreen(
     var noteColor by remember { mutableStateOf(editingNote?.color ?: 0L) }
     var isPinned by remember { mutableStateOf(editingNote?.isPinned ?: false) }
     var bookId by remember { mutableStateOf(editingNote?.bookId) }
+    var isBodyHidden by remember { mutableStateOf(editingNote?.isBodyHidden ?: false) }
     var isDeleted by remember { mutableStateOf(false) }
 
     var showColorPicker by remember { mutableStateOf(false) }
@@ -87,7 +88,7 @@ fun EditorScreen(
         debounceJob = coroutineScope.launch {
             delay(500)
             if (!isDeleted && (titleText.trim().isNotBlank() || bodyText.trim().isNotBlank())) {
-                onSave(stableNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId)
+                onSave(stableNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId, isBodyHidden)
             }
         }
     }
@@ -97,7 +98,7 @@ fun EditorScreen(
         if (isDeleted) return
         debounceJob?.cancel()
         if (titleText.trim().isNotBlank() || bodyText.trim().isNotBlank()) {
-            onSave(stableNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId)
+            onSave(stableNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId, isBodyHidden)
         }
     }
 
@@ -137,6 +138,16 @@ fun EditorScreen(
                     }
                     IconButton(onClick = { showColorPicker = !showColorPicker }) {
                         Icon(Icons.Default.Palette, contentDescription = "Color", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    IconButton(onClick = {
+                        isBodyHidden = !isBodyHidden
+                        saveNow()
+                    }) {
+                        Icon(
+                            if (isBodyHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = "Ocultar descripción",
+                            tint = if (isBodyHidden) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                     if (editingNote != null) {
                         IconButton(onClick = {

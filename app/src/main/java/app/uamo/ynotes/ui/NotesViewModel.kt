@@ -141,6 +141,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         color: Long = 0L, 
         isPinned: Boolean = false, 
         bookId: String? = null,
+        isBodyHidden: Boolean = false,
         existingCreatedAt: Long? = null
     ) {
         if (title.isBlank() && body.isBlank()) return
@@ -167,7 +168,8 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
                     updatedAt = currentTime,
                     isPinned = isPinned,
                     bookId = bookId,
-                    isDeleted = false
+                    isDeleted = false,
+                    isBodyHidden = isBodyHidden
                 )
             )
         }
