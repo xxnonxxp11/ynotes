@@ -26,6 +26,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.uamo.ynotes.data.BookEntity
 import app.uamo.ynotes.data.NoteEntity
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.util.UUID
 
 val NoteColors = listOf(
     0L, // Default
@@ -50,13 +54,15 @@ val NoteColors = listOf(
 @Composable
 fun EditorScreen(
     editingNote: NoteEntity?,
-    isSecret: Boolean, 
+    isSecret: Boolean,
     books: List<BookEntity>,
     onSave: (id: String?, title: String, body: String, color: Long, isPinned: Boolean, bookId: String?) -> Unit,
     onDelete: (id: String) -> Unit,
     onNavigateBack: () -> Unit
 ) {
-    val currentNoteId = remember { editingNote?.id }
+    // Stable ID: reuse the existing note's ID, or generate ONE new UUID for this session
+    val stableNoteId = remember { editingNote?.id ?: UUID.randomUUID().toString() }
+
     var titleText by remember { mutableStateOf(editingNote?.title ?: "") }
     var bodyText by remember { mutableStateOf(editingNote?.body ?: "") }
     var noteColor by remember { mutableStateOf(editingNote?.color ?: 0L) }
@@ -67,12 +73,36 @@ fun EditorScreen(
     var showColorPicker by remember { mutableStateOf(false) }
     var showBookMenu by remember { mutableStateOf(false) }
 
+    val coroutineScope = rememberCoroutineScope()
+    var debounceJob by remember { mutableStateOf<Job?>(null) }
+
     val cursorColor = if (isSecret) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
     val backgroundColor = if (noteColor == 0L) MaterialTheme.colorScheme.background else Color(noteColor.toULong())
-
     val context = androidx.compose.ui.platform.LocalContext.current
 
+    // Debounced save: cancels the previous pending save and waits 500ms of silence
+    fun scheduleSave() {
+        if (isDeleted) return
+        debounceJob?.cancel()
+        debounceJob = coroutineScope.launch {
+            delay(500)
+            if (!isDeleted && (titleText.trim().isNotBlank() || bodyText.trim().isNotBlank())) {
+                onSave(stableNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId)
+            }
+        }
+    }
+
+    // Immediate save for buttons (pin, color, book, back, check)
+    fun saveNow() {
+        if (isDeleted) return
+        debounceJob?.cancel()
+        if (titleText.trim().isNotBlank() || bodyText.trim().isNotBlank()) {
+            onSave(stableNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId)
+        }
+    }
+
     BackHandler {
+        saveNow()
         onNavigateBack()
     }
 
@@ -87,7 +117,10 @@ fun EditorScreen(
                 ),
                 title = { },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = {
+                        saveNow()
+                        onNavigateBack()
+                    }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Atrás")
                     }
                 },
@@ -106,7 +139,11 @@ fun EditorScreen(
                     }
                     Box {
                         IconButton(onClick = { showBookMenu = true }) {
-                            Icon(Icons.Default.MenuBook, contentDescription = "Libro", tint = if (bookId != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(
+                                Icons.Default.MenuBook,
+                                contentDescription = "Libro",
+                                tint = if (bookId != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                         DropdownMenu(
                             expanded = showBookMenu,
@@ -114,10 +151,10 @@ fun EditorScreen(
                         ) {
                             DropdownMenuItem(
                                 text = { Text("Sin libro") },
-                                onClick = { 
+                                onClick = {
                                     bookId = null
                                     showBookMenu = false
-                                    if (!isDeleted) onSave(currentNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId)
+                                    saveNow()
                                 }
                             )
                             books.forEach { book ->
@@ -126,19 +163,19 @@ fun EditorScreen(
                                     onClick = {
                                         bookId = book.id
                                         showBookMenu = false
-                                        if (!isDeleted) onSave(currentNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId)
+                                        saveNow()
                                     }
                                 )
                             }
                         }
                     }
-                    IconButton(onClick = { 
+                    IconButton(onClick = {
                         isPinned = !isPinned
-                        if (!isDeleted) onSave(currentNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId)
+                        saveNow()
                     }) {
                         Icon(
-                            if (isPinned) Icons.Default.PushPin else Icons.Default.PushPin,
-                            contentDescription = "Fijar", 
+                            Icons.Default.PushPin,
+                            contentDescription = "Fijar",
                             tint = if (isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -146,8 +183,9 @@ fun EditorScreen(
                         Icon(Icons.Default.Palette, contentDescription = "Color", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (editingNote != null) {
-                        IconButton(onClick = { 
+                        IconButton(onClick = {
                             isDeleted = true
+                            debounceJob?.cancel()
                             onDelete(editingNote.id)
                             onNavigateBack()
                         }) {
@@ -158,7 +196,10 @@ fun EditorScreen(
                             )
                         }
                     }
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = {
+                        saveNow()
+                        onNavigateBack()
+                    }) {
                         Icon(Icons.Default.Check, contentDescription = "Guardar Nota")
                     }
                 }
@@ -183,15 +224,19 @@ fun EditorScreen(
                             modifier = Modifier
                                 .size(44.dp)
                                 .clip(CircleShape)
-                                .background(if (colorValue == 0L) MaterialTheme.colorScheme.surfaceVariant else Color(colorValue.toULong()))
-                                        .border(
+                                .background(
+                                    if (colorValue == 0L) MaterialTheme.colorScheme.surfaceVariant
+                                    else Color(colorValue.toULong())
+                                )
+                                .border(
                                     width = if (noteColor == colorValue) 3.dp else 1.dp,
-                                    color = if (noteColor == colorValue) MaterialTheme.colorScheme.primary else app.uamo.ynotes.ui.theme.GlassBorder,
+                                    color = if (noteColor == colorValue) MaterialTheme.colorScheme.primary
+                                            else app.uamo.ynotes.ui.theme.GlassBorder,
                                     shape = CircleShape
                                 )
-                                .clickable { 
+                                .clickable {
                                     noteColor = colorValue
-                                    if (!isDeleted) onSave(currentNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId)
+                                    saveNow()
                                 }
                         ) {
                             if (noteColor == colorValue) {
@@ -205,7 +250,7 @@ fun EditorScreen(
                     }
                 }
             }
-            
+
             Column(modifier = Modifier.padding(horizontal = 24.dp).weight(1f)) {
                 Box(contentAlignment = Alignment.CenterStart) {
                     if (titleText.isEmpty()) {
@@ -220,9 +265,9 @@ fun EditorScreen(
                     }
                     BasicTextField(
                         value = titleText,
-                        onValueChange = { 
-                            titleText = it 
-                            if (!isDeleted) onSave(currentNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId)
+                        onValueChange = {
+                            titleText = it
+                            scheduleSave()
                         },
                         textStyle = TextStyle(
                             fontSize = 24.sp,
@@ -248,9 +293,9 @@ fun EditorScreen(
                     }
                     BasicTextField(
                         value = bodyText,
-                        onValueChange = { 
-                            bodyText = it 
-                            if (!isDeleted) onSave(currentNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId)
+                        onValueChange = {
+                            bodyText = it
+                            scheduleSave()
                         },
                         textStyle = TextStyle(
                             fontSize = 16.sp,
