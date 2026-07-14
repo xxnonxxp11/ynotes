@@ -34,7 +34,9 @@ fun HomeScreen(
     notes: List<NoteEntity>,
     safeZonePassword: String,
     safeZoneTriggerMode: Int,
+    isBiometricEnabled: Boolean,
     onRequestSafeZone: () -> Unit,
+    onRequestSafeZoneBiometric: () -> Unit,
     onAddNote: () -> Unit,
     onNoteClick: (NoteEntity) -> Unit,
     onSettingsClick: () -> Unit,
@@ -119,7 +121,10 @@ fun HomeScreen(
                             modifier = Modifier.size(24.dp).pointerInput(Unit) {
                                 detectTapGestures(
                                     onLongPress = {
-                                        if (safeZoneTriggerMode == 1) onRequestSafeZone()
+                                        if (safeZoneTriggerMode == 1) {
+                                            if (isBiometricEnabled) onRequestSafeZoneBiometric()
+                                            else onRequestSafeZone()
+                                        }
                                     }
                                 )
                             }
@@ -183,7 +188,10 @@ fun HomeScreen(
                                     detectTapGestures(
                                         onTap = { onSettingsClick() },
                                         onLongPress = {
-                                            if (safeZoneTriggerMode == 2) onRequestSafeZone()
+                                            if (safeZoneTriggerMode == 2) {
+                                                if (isBiometricEnabled) onRequestSafeZoneBiometric()
+                                                else onRequestSafeZone()
+                                            }
                                         }
                                     )
                                 },

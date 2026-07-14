@@ -36,6 +36,8 @@ fun AppNavigation(
     val secretNotes by viewModel.secretNotes.collectAsState()
     
     val executor = ContextCompat.getMainExecutor(context)
+
+    // Full safe zone request (respects biometric setting)
     val onRequestSafeZone: () -> Unit = {
         if (activity != null) {
             val biometricManager = BiometricManager.from(context)
@@ -63,6 +65,36 @@ fun AppNavigation(
         }
     }
 
+    // Biometric-only: skips password, goes straight to fingerprint
+    val onRequestSafeZoneBiometric: () -> Unit = {
+        if (activity != null) {
+            val biometricManager = BiometricManager.from(context)
+            if (biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS) {
+                val biometricPrompt = BiometricPrompt(activity, executor,
+                    object : BiometricPrompt.AuthenticationCallback() {
+                        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                            super.onAuthenticationSucceeded(result)
+                            navController.navigate("safe_zone")
+                        }
+                    })
+
+                val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                    .setTitle("Zona Segura")
+                    .setSubtitle("Confirma tu huella para acceder")
+                    .setNegativeButtonText("Cancelar")
+                    .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+                    .build()
+
+                biometricPrompt.authenticate(promptInfo)
+            } else {
+                // Fallback if biometric not available
+                navController.navigate("safe_zone")
+            }
+        } else {
+            navController.navigate("safe_zone")
+        }
+    }
+
     NavHost(navController = navController, startDestination = startDestination) {
         
         composable("welcome") {
@@ -81,7 +113,9 @@ fun AppNavigation(
                 notes = publicNotes,
                 safeZonePassword = safeZonePassword.value,
                 safeZoneTriggerMode = safeZoneTriggerMode.value,
+                isBiometricEnabled = isBiometricEnabled.value,
                 onRequestSafeZone = onRequestSafeZone,
+                onRequestSafeZoneBiometric = onRequestSafeZoneBiometric,
                 onAddNote = {
                     navController.navigate("editor/public/new")
                 },
