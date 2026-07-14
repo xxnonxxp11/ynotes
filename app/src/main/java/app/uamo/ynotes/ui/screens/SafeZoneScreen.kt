@@ -1,5 +1,6 @@
 package app.uamo.ynotes.ui.screens
 
+import androidx.compose.foundation.background
 import android.content.Context
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable

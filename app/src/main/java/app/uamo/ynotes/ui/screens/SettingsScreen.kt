@@ -1,5 +1,6 @@
 package app.uamo.ynotes.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.activity.compose.BackHandler
 import androidx.biometric.BiometricManager
 import androidx.compose.foundation.clickable

@@ -1,5 +1,6 @@
 package app.uamo.ynotes
 
+import androidx.compose.foundation.background
 import android.content.Context
 import android.os.Bundle
 import androidx.activity.compose.setContent
