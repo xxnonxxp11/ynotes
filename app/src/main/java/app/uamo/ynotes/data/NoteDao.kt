@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface NoteDao {
+    // Full note queries
     @Query("SELECT * FROM notes WHERE isSecret = 0 AND isDeleted = 0 ORDER BY isPinned DESC, updatedAt DESC")
     fun getPublicNotes(): Flow<List<NoteEntity>>
 
@@ -19,6 +20,10 @@ interface NoteDao {
 
     @Query("SELECT * FROM notes WHERE bookId = :bookId AND isDeleted = 0 ORDER BY isPinned DESC, updatedAt DESC")
     fun getNotesByBook(bookId: String): Flow<List<NoteEntity>>
+
+    // Single note by ID (for editor - loads full body on demand)
+    @Query("SELECT * FROM notes WHERE id = :id LIMIT 1")
+    suspend fun getNoteById(id: String): NoteEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertNote(note: NoteEntity)

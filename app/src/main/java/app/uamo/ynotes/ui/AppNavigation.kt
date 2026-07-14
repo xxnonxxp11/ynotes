@@ -46,6 +46,7 @@ fun AppNavigation(
                     object : BiometricPrompt.AuthenticationCallback() {
                         override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                             super.onAuthenticationSucceeded(result)
+                            viewModel.unlockSafeZone()
                             navController.navigate("safe_zone")
                         }
                     })
@@ -58,9 +59,11 @@ fun AppNavigation(
 
                 biometricPrompt.authenticate(promptInfo)
             } else {
+                viewModel.unlockSafeZone()
                 navController.navigate("safe_zone")
             }
         } else {
+            viewModel.unlockSafeZone()
             navController.navigate("safe_zone")
         }
     }
@@ -74,6 +77,7 @@ fun AppNavigation(
                     object : BiometricPrompt.AuthenticationCallback() {
                         override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                             super.onAuthenticationSucceeded(result)
+                            viewModel.unlockSafeZone()
                             navController.navigate("safe_zone")
                         }
                     })
@@ -88,9 +92,11 @@ fun AppNavigation(
                 biometricPrompt.authenticate(promptInfo)
             } else {
                 // Fallback if biometric not available
+                viewModel.unlockSafeZone()
                 navController.navigate("safe_zone")
             }
         } else {
+            viewModel.unlockSafeZone()
             navController.navigate("safe_zone")
         }
     }
@@ -139,6 +145,7 @@ fun AppNavigation(
                 notes = secretNotes,
                 isAppHidingEnabled = isAppHidingEnabled.value,
                 onDeactivateSafeZone = {
+                    viewModel.lockSafeZone()
                     navController.navigate("home") {
                         popUpTo(0) { inclusive = true }
                     }
