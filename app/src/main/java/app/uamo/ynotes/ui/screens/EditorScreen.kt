@@ -32,22 +32,22 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 
 val NoteColors = listOf(
-    0L, // Default
-    0xFFFFCDD2, // Red
-    0xFFF8BBD0, // Pink
-    0xFFE1BEE7, // Purple
-    0xFFD1C4E9, // Deep Purple
-    0xFFC5CAE9, // Indigo
-    0xFFBBDEFB, // Blue
-    0xFFB2EBF2, // Cyan
-    0xFFB2DFDB, // Teal
-    0xFFC8E6C9, // Green
-    0xFFDCEDC8, // Light Green
-    0xFFF0F4C3, // Lime
-    0xFFFFF9C4, // Yellow
-    0xFFFFECB3, // Amber
-    0xFFFFE0B2, // Orange
-    0xFFFFCCBC  // Deep Orange
+    0L, // Default (uses surfaceVariant)
+    0xFF4A1C1C, // Dark Red
+    0xFF4A1C3B, // Dark Pink
+    0xFF3B1C4A, // Dark Purple
+    0xFF2C1C4A, // Dark Deep Purple
+    0xFF1C2A4A, // Dark Indigo
+    0xFF1C3A4A, // Dark Blue
+    0xFF1C4A47, // Dark Cyan
+    0xFF1C4A3B, // Dark Teal
+    0xFF1C4A22, // Dark Green
+    0xFF2F4A1C, // Dark Light Green
+    0xFF4A471C, // Dark Lime
+    0xFF4A421C, // Dark Yellow
+    0xFF4A351C, // Dark Amber
+    0xFF4A2B1C, // Dark Orange
+    0xFF4A221C  // Dark Deep Orange
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -182,11 +182,12 @@ fun EditorScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 12.dp)
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
                         .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     NoteColors.forEach { colorValue ->
+                        val isSelected = noteColor == colorValue
                         Box(
                             modifier = Modifier
                                 .size(44.dp)
@@ -196,21 +197,23 @@ fun EditorScreen(
                                     else Color(colorValue.toULong())
                                 )
                                 .border(
-                                    width = if (noteColor == colorValue) 3.dp else 1.dp,
-                                    color = if (noteColor == colorValue) MaterialTheme.colorScheme.primary
+                                    width = if (isSelected) 3.dp else 1.dp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary
                                             else app.uamo.ynotes.ui.theme.GlassBorder,
                                     shape = CircleShape
                                 )
                                 .clickable {
                                     noteColor = colorValue
                                     saveNow()
-                                }
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
-                            if (noteColor == colorValue) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(Color.Black.copy(alpha = 0.2f))
+                            if (isSelected) {
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = "Seleccionado",
+                                    tint = Color.White.copy(alpha = 0.8f),
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
