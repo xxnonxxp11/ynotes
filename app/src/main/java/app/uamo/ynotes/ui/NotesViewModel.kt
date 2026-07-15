@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import app.uamo.ynotes.data.BookEntity
 import app.uamo.ynotes.data.NoteDatabase
 import app.uamo.ynotes.data.NoteEntity
+import app.uamo.ynotes.data.SortOrder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -23,14 +24,46 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     private val noteDao = NoteDatabase.getDatabase(application).noteDao()
 
     // ──────────────────────────────────────────────
+    // SORT ORDER — Persisted in SharedPreferences
+    // ──────────────────────────────────────────────
+    private val prefs = application.getSharedPreferences("yNotesPrefs", android.content.Context.MODE_PRIVATE)
+    
+    private val _sortOrder = MutableStateFlow(
+        try { SortOrder.valueOf(prefs.getString("SORT_ORDER", null) ?: SortOrder.UPDATED_DESC.name) }
+        catch (_: Exception) { SortOrder.UPDATED_DESC }
+    )
+    val sortOrder: StateFlow<SortOrder> = _sortOrder.asStateFlow()
+
+    fun setSortOrder(order: SortOrder) {
+        _sortOrder.value = order
+        prefs.edit().putString("SORT_ORDER", order.name).apply()
+    }
+
+    private fun List<NoteEntity>.applySortOrder(order: SortOrder): List<NoteEntity> {
+        val pinned = this.filter { it.isPinned }.sortedWith(order.comparator())
+        val unpinned = this.filter { !it.isPinned }.sortedWith(order.comparator())
+        return pinned + unpinned
+    }
+
+    // ──────────────────────────────────────────────
     // PUBLIC NOTES — Eagerly cached for instant load
     // ──────────────────────────────────────────────
-    val publicNotes: StateFlow<List<NoteEntity>> = noteDao.getPublicNotes()
+    private val _rawPublicNotes: StateFlow<List<NoteEntity>> = noteDao.getPublicNotes()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.Eagerly,  // Always in memory — instant UI
             initialValue = emptyList()
         )
+
+    val publicNotes: StateFlow<List<NoteEntity>> = combine(
+        _rawPublicNotes, _sortOrder
+    ) { notes, order ->
+        notes.applySortOrder(order)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = emptyList()
+    )
 
     // ──────────────────────────────────────────────
     // SAFE ZONE — Locked by default, decrypt on unlock
@@ -49,12 +82,13 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     // Decrypted cache — only populated when unlocked
     private val _decryptedSecretNotes = MutableStateFlow<List<NoteEntity>>(emptyList())
 
-    // Public-facing: combines lock state with decrypted cache
+    // Public-facing: combines lock state with decrypted cache + sort
     val secretNotes: StateFlow<List<NoteEntity>> = combine(
         _isSafeZoneUnlocked,
-        _decryptedSecretNotes
-    ) { unlocked, notes ->
-        if (unlocked) notes else emptyList()
+        _decryptedSecretNotes,
+        _sortOrder
+    ) { unlocked, notes, order ->
+        if (unlocked) notes.applySortOrder(order) else emptyList()
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -127,6 +161,44 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     fun lockSafeZone() {
         _isSafeZoneUnlocked.value = false
         _decryptedSecretNotes.value = emptyList()  // Wipe from memory
+    }
+
+    // ──────────────────────────────────────────────
+    // MULTI-SELECT
+    // ──────────────────────────────────────────────
+    private val _selectedNoteIds = MutableStateFlow<Set<String>>(emptySet())
+    val selectedNoteIds: StateFlow<Set<String>> = _selectedNoteIds.asStateFlow()
+
+    private val _isSelectionMode = MutableStateFlow(false)
+    val isSelectionMode: StateFlow<Boolean> = _isSelectionMode.asStateFlow()
+
+    fun toggleNoteSelection(noteId: String) {
+        val current = _selectedNoteIds.value
+        _selectedNoteIds.value = if (noteId in current) current - noteId else current + noteId
+        if (_selectedNoteIds.value.isEmpty()) _isSelectionMode.value = false
+    }
+
+    fun startSelection(noteId: String) {
+        _isSelectionMode.value = true
+        _selectedNoteIds.value = setOf(noteId)
+    }
+
+    fun selectAll(noteIds: List<String>) {
+        _selectedNoteIds.value = noteIds.toSet()
+    }
+
+    fun clearSelection() {
+        _isSelectionMode.value = false
+        _selectedNoteIds.value = emptySet()
+    }
+
+    fun deleteSelectedNotes() {
+        viewModelScope.launch {
+            _selectedNoteIds.value.forEach { id ->
+                noteDao.moveToTrash(id)
+            }
+            clearSelection()
+        }
     }
 
     // ──────────────────────────────────────────────

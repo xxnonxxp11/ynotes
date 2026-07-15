@@ -7,6 +7,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
@@ -32,7 +35,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.uamo.ynotes.data.NoteEntity
+import app.uamo.ynotes.data.SortOrder
 import app.uamo.ynotes.ui.components.NoteCard
+import app.uamo.ynotes.ui.components.SelectionToolbar
+import app.uamo.ynotes.ui.components.SortMenuButton
 import app.uamo.ynotes.utils.AppCacheManager
 import app.uamo.ynotes.utils.AppInfo
 import app.uamo.ynotes.utils.getInstalledApps
@@ -44,7 +50,16 @@ import kotlinx.coroutines.withContext
 @Composable
 fun SafeZoneScreen(
     notes: List<NoteEntity>,
-    isAppHidingEnabled: Boolean,
+    isAppHidingEnabled: Int, // 0=disabled, 1=normal(apps tab), 2=reverse(apps main)
+    sortOrder: SortOrder,
+    onSortOrderChange: (SortOrder) -> Unit,
+    isSelectionMode: Boolean,
+    selectedNoteIds: Set<String>,
+    onStartSelection: (String) -> Unit,
+    onToggleSelection: (String) -> Unit,
+    onSelectAll: (List<String>) -> Unit,
+    onClearSelection: () -> Unit,
+    onDeleteSelected: () -> Unit,
     onDeactivateSafeZone: () -> Unit,
     onAddNote: () -> Unit,
     onNoteClick: (NoteEntity) -> Unit,
@@ -69,6 +84,7 @@ fun SafeZoneScreen(
     var isLoadingApps by remember { mutableStateOf(false) }
     var showAppPicker by remember { mutableStateOf(false) }
     var isAppsListExpanded by remember { mutableStateOf(true) }
+    var isNotesExpanded by remember { mutableStateOf(true) }
 
     // Load cached hidden apps instantly on first composition
     LaunchedEffect(Unit) {
@@ -154,17 +170,21 @@ fun SafeZoneScreen(
         )
     }
 
+    val appsToShow = cachedHiddenApps.filter { hiddenAppPackages.contains(it.packageName) }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onAddNote,
-                icon = { Icon(Icons.Default.Lock, "Añadir Secreto") },
-                text = { Text("Nuevo secreto") },
-                containerColor = MaterialTheme.colorScheme.errorContainer,
-                contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                shape = RoundedCornerShape(16.dp)
-            )
+            if (!isSelectionMode) {
+                ExtendedFloatingActionButton(
+                    onClick = onAddNote,
+                    icon = { Icon(Icons.Default.Lock, "Añadir Secreto") },
+                    text = { Text("Nuevo secreto") },
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    shape = RoundedCornerShape(16.dp)
+                )
+            }
         }
     ) { innerPadding ->
         Column(
@@ -172,107 +192,141 @@ fun SafeZoneScreen(
                 .padding(innerPadding)
                 .fillMaxSize()
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(
+            // Selection toolbar or Search bar + toolbar
+            if (isSelectionMode) {
+                SelectionToolbar(
+                    selectedCount = selectedNoteIds.size,
+                    totalCount = filteredNotes.size,
+                    onSelectAll = { onSelectAll(filteredNotes.map { it.id }) },
+                    onDelete = onDeleteSelected,
+                    onClearSelection = onClearSelection
+                )
+            } else {
+                Row(
                     modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp),
-                    shape = RoundedCornerShape(50.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    tonalElevation = 0.dp
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
+                    Surface(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .weight(1f)
+                            .height(52.dp),
+                        shape = RoundedCornerShape(50.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        tonalElevation = 0.dp
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Buscar secreto",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Box(modifier = Modifier.weight(1f)) {
-                            if (searchQuery.isEmpty()) {
-                                Text(
-                                    text = "Buscar en bóveda",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Buscar secreto",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Box(modifier = Modifier.weight(1f)) {
+                                if (searchQuery.isEmpty()) {
+                                    Text(
+                                        text = "Buscar en bóveda",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                    )
+                                }
+                                BasicTextField(
+                                    value = searchQuery,
+                                    onValueChange = { searchQuery = it },
+                                    textStyle = TextStyle(
+                                        fontSize = 16.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    ),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    cursorBrush = SolidColor(MaterialTheme.colorScheme.error),
+                                    singleLine = true
                                 )
                             }
-                            BasicTextField(
-                                value = searchQuery,
-                                onValueChange = { searchQuery = it },
-                                textStyle = TextStyle(
-                                    fontSize = 16.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                ),
-                                modifier = Modifier.fillMaxWidth(),
-                                cursorBrush = SolidColor(MaterialTheme.colorScheme.error),
-                                singleLine = true
-                            )
-                        }
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(24.dp)) {
-                                Icon(Icons.Default.Close, contentDescription = "Limpiar", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(24.dp)) {
+                                    Icon(Icons.Default.Close, contentDescription = "Limpiar", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
                             }
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
 
-                Surface(
-                    modifier = Modifier.height(52.dp),
-                    shape = RoundedCornerShape(50.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    tonalElevation = 0.dp
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onTrashClick) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = "Papelera",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    Surface(
+                        modifier = Modifier.height(52.dp),
+                        shape = RoundedCornerShape(50.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        tonalElevation = 0.dp
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            SortMenuButton(
+                                currentSort = sortOrder,
+                                onSortChange = onSortOrderChange
                             )
-                        }
-                        IconButton(onClick = onBooksClick) {
-                            Icon(
-                                imageVector = Icons.Default.MenuBook,
-                                contentDescription = "Libros",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        IconButton(onClick = onSettingsClick) {
-                            Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = "Configuración",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        IconButton(onClick = onDeactivateSafeZone) {
-                            Icon(
-                                imageVector = Icons.Default.ExitToApp,
-                                contentDescription = "Cerrar Zona Segura",
-                                tint = MaterialTheme.colorScheme.error
-                            )
+                            IconButton(onClick = onTrashClick) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Papelera",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            IconButton(onClick = onBooksClick) {
+                                Icon(
+                                    imageVector = Icons.Default.MenuBook,
+                                    contentDescription = "Libros",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            IconButton(onClick = onSettingsClick) {
+                                Icon(
+                                    imageVector = Icons.Default.Settings,
+                                    contentDescription = "Configuración",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            IconButton(onClick = onDeactivateSafeZone) {
+                                Icon(
+                                    imageVector = Icons.Default.ExitToApp,
+                                    contentDescription = "Cerrar Zona Segura",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            if (isAppHidingEnabled) {
-                if (hiddenAppPackages.isNotEmpty() || showAppPicker) {
-                    // Use cached apps for instant display — no need to scan all installed apps
-                    val appsToShow = cachedHiddenApps.filter { hiddenAppPackages.contains(it.packageName) }
-                    
+            // ═══════════════════════════════════════
+            // MODE 0: Disabled — only show notes
+            // ═══════════════════════════════════════
+            if (isAppHidingEnabled == 0) {
+                NotesContent(
+                    filteredNotes = filteredNotes,
+                    pinnedNotes = pinnedNotes,
+                    unpinnedNotes = unpinnedNotes,
+                    searchQuery = searchQuery,
+                    isSelectionMode = isSelectionMode,
+                    selectedNoteIds = selectedNoteIds,
+                    onNoteClick = onNoteClick,
+                    onStartSelection = onStartSelection,
+                    onToggleSelection = onToggleSelection,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            // ═══════════════════════════════════════
+            // MODE 1: Normal — apps as collapsible tab on top, notes below
+            // ═══════════════════════════════════════
+            if (isAppHidingEnabled == 1) {
+                if (hiddenAppPackages.isNotEmpty() || appsToShow.isNotEmpty()) {
+                    // Collapsible apps header
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -310,141 +364,339 @@ fun SafeZoneScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             items(appsToShow, key = { it.packageName }) { app ->
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                AppIconItem(app = app, iconSize = 48, context = context)
+                            }
+                            item {
+                                AddAppButton(iconSize = 48, onClick = { showAppPicker = true })
+                            }
+                        }
+                        Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f), modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                    }
+                } else {
+                    // No apps added yet — show add button
+                    TextButton(
+                        onClick = { showAppPicker = true },
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                    ) {
+                        Icon(Icons.Default.Apps, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Añadir Apps Ocultas")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                NotesContent(
+                    filteredNotes = filteredNotes,
+                    pinnedNotes = pinnedNotes,
+                    unpinnedNotes = unpinnedNotes,
+                    searchQuery = searchQuery,
+                    isSelectionMode = isSelectionMode,
+                    selectedNoteIds = selectedNoteIds,
+                    onNoteClick = onNoteClick,
+                    onStartSelection = onStartSelection,
+                    onToggleSelection = onToggleSelection,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            // ═══════════════════════════════════════
+            // MODE 2: Reverse — apps as main grid, notes as collapsible tab
+            // ═══════════════════════════════════════
+            if (isAppHidingEnabled == 2) {
+                // Collapsible notes header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { isNotesExpanded = !isNotesExpanded }
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Description,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Notas Secretas (${filteredNotes.size})",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        imageVector = if (isNotesExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = "Desplegar",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                if (isNotesExpanded) {
+                    if (filteredNotes.isEmpty()) {
+                        Text(
+                            text = if (searchQuery.isBlank()) "Sin notas secretas" else "Sin resultados",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                        )
+                    } else {
+                        LazyRow(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(filteredNotes, key = { it.id }) { note ->
+                                Card(
                                     modifier = Modifier
-                                        .clickable {
-                                            val launchIntent = context.packageManager.getLaunchIntentForPackage(app.packageName)
-                                            if (launchIntent != null) {
-                                                context.startActivity(launchIntent)
-                                            }
-                                        }
-                                        .padding(4.dp)
+                                        .width(160.dp)
+                                        .clickable { onNoteClick(note) },
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (note.color == 0L) MaterialTheme.colorScheme.surfaceVariant 
+                                                         else androidx.compose.ui.graphics.Color(note.color.toULong())
+                                    )
                                 ) {
-                                    Image(
-                                        bitmap = app.icon,
-                                        contentDescription = app.name,
-                                        modifier = Modifier
-                                            .size(48.dp)
-                                            .graphicsLayer {
-                                                rotationX = 15f
-                                                rotationY = -15f
-                                                shadowElevation = 8.dp.toPx()
-                                                shape = RoundedCornerShape(12.dp)
-                                                clip = true
-                                            }
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = app.name, 
-                                        style = MaterialTheme.typography.bodySmall, 
-                                        color = MaterialTheme.colorScheme.onBackground,
-                                        maxLines = 1,
-                                        modifier = Modifier.width(60.dp),
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                                    )
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        if (note.isPinned) {
+                                            Icon(
+                                                Icons.Default.PushPin,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(14.dp),
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                        }
+                                        Text(
+                                            text = note.title.ifEmpty { "Sin título" },
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 2,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                        )
+                                        if (note.body.isNotEmpty() && !note.isBodyHidden) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = note.body,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 2,
+                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
                                 }
                             }
-                    
-                    item {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier
-                                .clickable { showAppPicker = true }
-                                .padding(4.dp)
-                        ) {
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                modifier = Modifier.size(48.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Add, 
-                                    contentDescription = "Añadir app", 
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(12.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Añadir", 
-                                style = MaterialTheme.typography.bodySmall, 
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
-                        }
                         }
                     }
                     Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f), modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
                 }
-            } else {
-                TextButton(
-                    onClick = { showAppPicker = true },
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                ) {
-                    Icon(Icons.Default.Apps, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Añadir Apps Ocultas")
+
+                // Apps as main grid with bigger icons
+                if (appsToShow.isEmpty() && hiddenAppPackages.isEmpty()) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Apps,
+                            contentDescription = null,
+                            modifier = Modifier.size(80.dp).padding(bottom = 16.dp),
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                        )
+                        Text(
+                            text = "Sin apps ocultas",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        TextButton(onClick = { showAppPicker = true }) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Añadir Apps")
+                        }
+                    }
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(4),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(appsToShow, key = { it.packageName }) { app ->
+                            AppIconItem(app = app, iconSize = 60, context = context)
+                        }
+                        item {
+                            AddAppButton(iconSize = 60, onClick = { showAppPicker = true })
+                        }
+                    }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
             }
         }
+    }
+}
 
-            if (filteredNotes.isEmpty()) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Security,
-                        contentDescription = "Bóveda vacía",
-                        modifier = Modifier.size(80.dp).padding(bottom = 16.dp),
-                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.3f)
-                    )
+// ──────────────────────────────────────
+// Reusable components
+// ──────────────────────────────────────
+
+@Composable
+private fun AppIconItem(app: AppInfo, iconSize: Int, context: android.content.Context) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clickable {
+                val launchIntent = context.packageManager.getLaunchIntentForPackage(app.packageName)
+                if (launchIntent != null) {
+                    context.startActivity(launchIntent)
+                }
+            }
+            .padding(4.dp)
+    ) {
+        Image(
+            bitmap = app.icon,
+            contentDescription = app.name,
+            modifier = Modifier
+                .size(iconSize.dp)
+                .graphicsLayer {
+                    shadowElevation = 8.dp.toPx()
+                    shape = RoundedCornerShape(if (iconSize > 50) 16.dp else 12.dp)
+                    clip = true
+                }
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = app.name,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onBackground,
+            maxLines = 1,
+            modifier = Modifier.width((iconSize + 12).dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun AddAppButton(iconSize: Int, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clickable { onClick() }
+            .padding(4.dp)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(if (iconSize > 50) 16.dp else 12.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            modifier = Modifier.size(iconSize.dp)
+        ) {
+            Icon(
+                Icons.Default.Add,
+                contentDescription = "Añadir app",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding((iconSize / 4).dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = "Añadir",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+    }
+}
+
+@Composable
+private fun NotesContent(
+    filteredNotes: List<NoteEntity>,
+    pinnedNotes: List<NoteEntity>,
+    unpinnedNotes: List<NoteEntity>,
+    searchQuery: String,
+    isSelectionMode: Boolean = false,
+    selectedNoteIds: Set<String> = emptySet(),
+    onNoteClick: (NoteEntity) -> Unit,
+    onStartSelection: ((String) -> Unit)? = null,
+    onToggleSelection: ((String) -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    if (filteredNotes.isEmpty()) {
+        Column(
+            modifier = modifier,
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Security,
+                contentDescription = "Bóveda vacía",
+                modifier = Modifier.size(80.dp).padding(bottom = 16.dp),
+                tint = MaterialTheme.colorScheme.error.copy(alpha = 0.3f)
+            )
+            Text(
+                text = if (searchQuery.isBlank()) "Bóveda vacía. ¡Añade tu primer secreto!" else "Sin resultados para \"$searchQuery\"",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+            )
+        }
+    } else {
+        LazyVerticalStaggeredGrid(
+            columns = StaggeredGridCells.Fixed(2),
+            modifier = modifier,
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalItemSpacing = 12.dp
+        ) {
+            if (pinnedNotes.isNotEmpty()) {
+                item(span = StaggeredGridItemSpan.FullLine) {
                     Text(
-                        text = if (searchQuery.isBlank()) "Bóveda vacía. ¡Añade tu primer secreto!" else "Sin resultados para \"$searchQuery\"",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                        "FIJADAS",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp, top = 8.dp)
                     )
                 }
-            } else {
-                LazyVerticalStaggeredGrid(
-                    columns = StaggeredGridCells.Fixed(2),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalItemSpacing = 12.dp
-                ) {
-                    if (pinnedNotes.isNotEmpty()) {
-                        item(span = StaggeredGridItemSpan.FullLine) {
-                            Text(
-                                "FIJADAS", 
-                                style = MaterialTheme.typography.labelMedium, 
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(start = 4.dp, bottom = 4.dp, top = 8.dp)
-                            )
+                items(pinnedNotes, key = { it.id }) { note ->
+                    NoteCard(
+                        note = note,
+                        isSelectionMode = isSelectionMode,
+                        isSelected = note.id in selectedNoteIds,
+                        onClick = { n ->
+                            if (isSelectionMode) onToggleSelection?.invoke(n.id)
+                            else onNoteClick(n)
+                        },
+                        onLongClick = { n ->
+                            if (!isSelectionMode) onStartSelection?.invoke(n.id)
                         }
-                        items(pinnedNotes, key = { it.id }) { note ->
-                            NoteCard(note = note, onClick = onNoteClick)
-                        }
-                    }
+                    )
+                }
+            }
 
-                    if (unpinnedNotes.isNotEmpty()) {
-                        if (pinnedNotes.isNotEmpty()) {
-                            item(span = StaggeredGridItemSpan.FullLine) {
-                                Text(
-                                    "OTRAS", 
-                                    style = MaterialTheme.typography.labelMedium, 
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp, top = 16.dp)
-                                )
-                            }
-                        }
-                        items(unpinnedNotes, key = { it.id }) { note ->
-                            NoteCard(note = note, onClick = onNoteClick)
-                        }
+            if (unpinnedNotes.isNotEmpty()) {
+                if (pinnedNotes.isNotEmpty()) {
+                    item(span = StaggeredGridItemSpan.FullLine) {
+                        Text(
+                            "OTRAS",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp, top = 16.dp)
+                        )
                     }
+                }
+                items(unpinnedNotes, key = { it.id }) { note ->
+                    NoteCard(
+                        note = note,
+                        isSelectionMode = isSelectionMode,
+                        isSelected = note.id in selectedNoteIds,
+                        onClick = { n ->
+                            if (isSelectionMode) onToggleSelection?.invoke(n.id)
+                            else onNoteClick(n)
+                        },
+                        onLongClick = { n ->
+                            if (!isSelectionMode) onStartSelection?.invoke(n.id)
+                        }
+                    )
                 }
             }
         }
