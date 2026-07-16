@@ -35,6 +35,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.uamo.ynotes.data.NoteEntity
+import app.uamo.ynotes.data.SortOrder
+import app.uamo.ynotes.data.applySortOrder
 import app.uamo.ynotes.ui.components.NoteCard
 import app.uamo.ynotes.utils.AppCacheManager
 import app.uamo.ynotes.utils.AppInfo
@@ -60,6 +62,8 @@ fun SafeZoneScreen(
     val sharedPrefs = remember { context.getSharedPreferences("yNotesPrefs", Context.MODE_PRIVATE) }
     
     var searchQuery by remember { mutableStateOf("") }
+    var sortOrder by remember { mutableStateOf(SortOrder.DATE_MODIFIED_DESC) }
+    var showSortMenu by remember { mutableStateOf(false) }
     
     // Hidden Apps State
     var hiddenAppPackages by remember { 
@@ -85,12 +89,13 @@ fun SafeZoneScreen(
         notes.filter { it.isSecret }
     }
 
-    val filteredNotes = remember(visibleNotes, searchQuery) {
-        if (searchQuery.isBlank()) visibleNotes
+    val filteredNotes = remember(visibleNotes, searchQuery, sortOrder) {
+        val filtered = if (searchQuery.isBlank()) visibleNotes
         else visibleNotes.filter {
             it.title.contains(searchQuery, ignoreCase = true) ||
             it.body.contains(searchQuery, ignoreCase = true)
         }
+        filtered.applySortOrder(sortOrder)
     }
 
     val pinnedNotes = remember(filteredNotes) { filteredNotes.filter { it.isPinned } }
@@ -243,6 +248,55 @@ fun SafeZoneScreen(
                     tonalElevation = 0.dp
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Sort button
+                        Box {
+                            IconButton(onClick = { showSortMenu = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.Sort,
+                                    contentDescription = "Ordenar",
+                                    tint = if (sortOrder != SortOrder.DATE_MODIFIED_DESC)
+                                        MaterialTheme.colorScheme.error
+                                    else
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showSortMenu,
+                                onDismissRequest = { showSortMenu = false }
+                            ) {
+                                Text(
+                                    text = "Ordenar por",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                                )
+                                SortOrder.entries.forEach { order ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = order.label,
+                                                color = if (sortOrder == order)
+                                                    MaterialTheme.colorScheme.error
+                                                else
+                                                    MaterialTheme.colorScheme.onSurface
+                                            )
+                                        },
+                                        onClick = {
+                                            sortOrder = order
+                                            showSortMenu = false
+                                        },
+                                        leadingIcon = if (sortOrder == order) ({
+                                            Icon(
+                                                Icons.Default.Check,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.error,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }) else null
+                                    )
+                                }
+                            }
+                        }
                         IconButton(onClick = onTrashClick) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
@@ -418,8 +472,8 @@ fun SafeZoneScreen(
                                         .clickable { onNoteClick(note) },
                                     shape = RoundedCornerShape(16.dp),
                                     colors = CardDefaults.cardColors(
-                                        containerColor = if (note.color == 0L) MaterialTheme.colorScheme.surfaceVariant 
-                                                         else androidx.compose.ui.graphics.Color(note.color.toULong())
+                                        containerColor = if (note.color == 0L) MaterialTheme.colorScheme.surfaceVariant
+                                                         else androidx.compose.ui.graphics.Color(note.color)
                                     )
                                 ) {
                                     Column(modifier = Modifier.padding(12.dp)) {
