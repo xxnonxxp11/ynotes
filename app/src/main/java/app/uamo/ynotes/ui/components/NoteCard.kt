@@ -27,7 +27,7 @@ import androidx.compose.foundation.border
 
 @Composable
 fun NoteCard(note: NoteEntity, onClick: (NoteEntity) -> Unit) {
-    val cardColor = if (note.color == 0L) MaterialTheme.colorScheme.surfaceVariant else Color(note.color.toULong())
+    val cardColor = if (note.color == 0L) MaterialTheme.colorScheme.surfaceVariant else Color(note.color)
     
     val baseModifier = Modifier
         .fillMaxWidth()

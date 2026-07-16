@@ -78,7 +78,7 @@ fun EditorScreen(
     var debounceJob by remember { mutableStateOf<Job?>(null) }
 
     val cursorColor = if (isSecret) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-    val backgroundColor = if (noteColor == 0L) MaterialTheme.colorScheme.background else Color(noteColor.toULong())
+    val backgroundColor = if (noteColor == 0L) MaterialTheme.colorScheme.background else Color(noteColor)
     val context = androidx.compose.ui.platform.LocalContext.current
 
     // Debounced save: cancels the previous pending save and waits 500ms of silence
@@ -182,20 +182,21 @@ fun EditorScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
                         .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     NoteColors.forEach { colorValue ->
                         val isSelected = noteColor == colorValue
+                        val displayColor = if (colorValue == 0L)
+                            MaterialTheme.colorScheme.surfaceVariant
+                        else
+                            Color(colorValue)
                         Box(
                             modifier = Modifier
-                                .size(44.dp)
+                                .size(40.dp)
                                 .clip(CircleShape)
-                                .background(
-                                    if (colorValue == 0L) MaterialTheme.colorScheme.surfaceVariant
-                                    else Color(colorValue.toULong())
-                                )
+                                .background(displayColor)
                                 .border(
                                     width = if (isSelected) 3.dp else 1.dp,
                                     color = if (isSelected) MaterialTheme.colorScheme.primary
@@ -204,6 +205,7 @@ fun EditorScreen(
                                 )
                                 .clickable {
                                     noteColor = colorValue
+                                    showColorPicker = false
                                     saveNow()
                                 },
                             contentAlignment = Alignment.Center
@@ -212,8 +214,8 @@ fun EditorScreen(
                                 Icon(
                                     Icons.Default.Check,
                                     contentDescription = "Seleccionado",
-                                    tint = Color.White.copy(alpha = 0.8f),
-                                    modifier = Modifier.size(20.dp)
+                                    tint = Color.White.copy(alpha = 0.9f),
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
