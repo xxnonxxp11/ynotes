@@ -30,9 +30,9 @@ fun SettingsScreen(
     currentTriggerMode: Int,
     onSaveSafeZone: (String, Int) -> Unit,
     isBiometricEnabled: Boolean,
-    isAppHidingEnabled: Boolean,
+    isAppHidingEnabled: Int,
     onBiometricToggle: (Boolean) -> Unit,
-    onAppHidingToggle: (Boolean) -> Unit,
+    onAppHidingToggle: (Int) -> Unit,
     onNavigateBack: () -> Unit
 ) {
     var showDialog by remember { mutableStateOf(false) }
@@ -211,42 +211,74 @@ fun SettingsScreen(
                             }
                             Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
                             
-                            Row(
+                            // App Shortcut Mode Selector
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 20.dp, vertical = 16.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(horizontal = 20.dp, vertical = 16.dp)
                             ) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                                    modifier = Modifier.size(40.dp)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                        modifier = Modifier.size(40.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Apps,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.padding(8.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Column {
+                                        Text(
+                                            "Accesos Directos", 
+                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), 
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            when (isAppHidingEnabled) {
+                                                0 -> "Desactivado"
+                                                1 -> "Apps como acceso rápido"
+                                                2 -> "Apps como vista principal"
+                                                else -> "Desactivado"
+                                            },
+                                            style = MaterialTheme.typography.bodyMedium, 
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(12.dp))
+                                // 3-option selector
+                                val modeLabels = listOf("Desactivado", "Activado", "Reversa")
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(MaterialTheme.colorScheme.surface),
+                                    horizontalArrangement = Arrangement.SpaceEvenly
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Apps,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.padding(8.dp)
-                                    )
+                                    modeLabels.forEachIndexed { index, label ->
+                                        val isSelected = isAppHidingEnabled == index
+                                        Surface(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clickable { onAppHidingToggle(index) },
+                                            shape = RoundedCornerShape(12.dp),
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface
+                                        ) {
+                                            Text(
+                                                text = label,
+                                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal),
+                                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.padding(vertical = 10.dp),
+                                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                            )
+                                        }
+                                    }
                                 }
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        "Aplicaciones Ocultas", 
-                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), 
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        if (isAppHidingEnabled) "El sistema está activado" else "El sistema está desactivado", 
-                                        style = MaterialTheme.typography.bodyMedium, 
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Switch(
-                                    checked = isAppHidingEnabled,
-                                    onCheckedChange = onAppHidingToggle
-                                )
                             }
                             Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
                         }

@@ -18,25 +18,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.uamo.ynotes.data.BookEntity
 import app.uamo.ynotes.data.NoteEntity
-import app.uamo.ynotes.data.SortOrder
 import app.uamo.ynotes.ui.components.NoteCard
-import app.uamo.ynotes.ui.components.SelectionToolbar
-import app.uamo.ynotes.ui.components.SortMenuButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BookNotesScreen(
     book: BookEntity,
     notes: List<NoteEntity>,
-    sortOrder: SortOrder,
-    onSortOrderChange: (SortOrder) -> Unit,
-    isSelectionMode: Boolean,
-    selectedNoteIds: Set<String>,
-    onStartSelection: (String) -> Unit,
-    onToggleSelection: (String) -> Unit,
-    onSelectAll: (List<String>) -> Unit,
-    onClearSelection: () -> Unit,
-    onDeleteSelected: () -> Unit,
     onNoteClick: (NoteEntity) -> Unit,
     onAddNote: () -> Unit,
     onNavigateBack: () -> Unit
@@ -47,47 +35,29 @@ fun BookNotesScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            if (isSelectionMode) {
-                SelectionToolbar(
-                    selectedCount = selectedNoteIds.size,
-                    totalCount = notes.size,
-                    onSelectAll = { onSelectAll(notes.map { it.id }) },
-                    onDelete = onDeleteSelected,
-                    onClearSelection = onClearSelection
-                )
-            } else {
-                TopAppBar(
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background,
-                        navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
-                        titleContentColor = MaterialTheme.colorScheme.onBackground
-                    ),
-                    title = { Text(book.name) },
-                    navigationIcon = {
-                        IconButton(onClick = onNavigateBack) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Atrás")
-                        }
-                    },
-                    actions = {
-                        SortMenuButton(
-                            currentSort = sortOrder,
-                            onSortChange = onSortOrderChange
-                        )
+            TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground
+                ),
+                title = { Text(book.name) },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Atrás")
                     }
-                )
-            }
+                }
+            )
         },
         floatingActionButton = {
-            if (!isSelectionMode) {
-                ExtendedFloatingActionButton(
-                    onClick = onAddNote,
-                    icon = { Icon(Icons.Default.Edit, "Añadir Nota") },
-                    text = { Text("Nueva nota") },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    shape = RoundedCornerShape(16.dp)
-                )
-            }
+            ExtendedFloatingActionButton(
+                onClick = onAddNote,
+                icon = { Icon(Icons.Default.Edit, "Añadir Nota") },
+                text = { Text("Nueva nota") },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = RoundedCornerShape(16.dp)
+            )
         }
     ) { innerPadding ->
         Column(
@@ -131,18 +101,7 @@ fun BookNotesScreen(
                             )
                         }
                         items(pinnedNotes, key = { it.id }) { note ->
-                            NoteCard(
-                                note = note,
-                                isSelectionMode = isSelectionMode,
-                                isSelected = note.id in selectedNoteIds,
-                                onClick = { n ->
-                                    if (isSelectionMode) onToggleSelection(n.id)
-                                    else onNoteClick(n)
-                                },
-                                onLongClick = { n ->
-                                    if (!isSelectionMode) onStartSelection(n.id)
-                                }
-                            )
+                            NoteCard(note = note, onClick = { onNoteClick(note) })
                         }
                     }
 
@@ -158,18 +117,7 @@ fun BookNotesScreen(
                             }
                         }
                         items(unpinnedNotes, key = { it.id }) { note ->
-                            NoteCard(
-                                note = note,
-                                isSelectionMode = isSelectionMode,
-                                isSelected = note.id in selectedNoteIds,
-                                onClick = { n ->
-                                    if (isSelectionMode) onToggleSelection(n.id)
-                                    else onNoteClick(n)
-                                },
-                                onLongClick = { n ->
-                                    if (!isSelectionMode) onStartSelection(n.id)
-                                }
-                            )
+                            NoteCard(note = note, onClick = onNoteClick)
                         }
                     }
                 }

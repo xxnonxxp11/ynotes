@@ -34,9 +34,6 @@ fun AppNavigation(
     
     val publicNotes by viewModel.publicNotes.collectAsState()
     val secretNotes by viewModel.secretNotes.collectAsState()
-    val sortOrder by viewModel.sortOrder.collectAsState()
-    val isSelectionMode by viewModel.isSelectionMode.collectAsState()
-    val selectedNoteIds by viewModel.selectedNoteIds.collectAsState()
     
     val executor = ContextCompat.getMainExecutor(context)
 
@@ -123,15 +120,6 @@ fun AppNavigation(
                 safeZonePassword = safeZonePassword.value,
                 safeZoneTriggerMode = safeZoneTriggerMode.value,
                 isBiometricEnabled = isBiometricEnabled.value,
-                sortOrder = sortOrder,
-                onSortOrderChange = { viewModel.setSortOrder(it) },
-                isSelectionMode = isSelectionMode,
-                selectedNoteIds = selectedNoteIds,
-                onStartSelection = { viewModel.startSelection(it) },
-                onToggleSelection = { viewModel.toggleNoteSelection(it) },
-                onSelectAll = { viewModel.selectAll(it) },
-                onClearSelection = { viewModel.clearSelection() },
-                onDeleteSelected = { viewModel.deleteSelectedNotes() },
                 onRequestSafeZone = onRequestSafeZone,
                 onRequestSafeZoneBiometric = onRequestSafeZoneBiometric,
                 onAddNote = {
@@ -156,44 +144,8 @@ fun AppNavigation(
             SafeZoneScreen(
                 notes = secretNotes,
                 isAppHidingEnabled = isAppHidingEnabled.value,
-                sortOrder = sortOrder,
-                onSortOrderChange = { viewModel.setSortOrder(it) },
-                isSelectionMode = isSelectionMode,
-                selectedNoteIds = selectedNoteIds,
-                onStartSelection = { viewModel.startSelection(it) },
-                onToggleSelection = { viewModel.toggleNoteSelection(it) },
-                onSelectAll = { viewModel.selectAll(it) },
-                onClearSelection = { viewModel.clearSelection() },
-                onDeleteSelected = {
-                    // Biometric required for safe zone deletion
-                    if (activity != null) {
-                        val biometricManager = BiometricManager.from(context)
-                        if (biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL) == BiometricManager.BIOMETRIC_SUCCESS) {
-                            val biometricPrompt = BiometricPrompt(activity, executor,
-                                object : BiometricPrompt.AuthenticationCallback() {
-                                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                                        super.onAuthenticationSucceeded(result)
-                                        viewModel.deleteSelectedNotes()
-                                    }
-                                })
-
-                            val promptInfo = BiometricPrompt.PromptInfo.Builder()
-                                .setTitle("Eliminar notas secretas")
-                                .setSubtitle("Confirma tu identidad para eliminar ${selectedNoteIds.size} nota${if (selectedNoteIds.size != 1) "s" else ""}")
-                                .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
-                                .build()
-
-                            biometricPrompt.authenticate(promptInfo)
-                        } else {
-                            viewModel.deleteSelectedNotes()
-                        }
-                    } else {
-                        viewModel.deleteSelectedNotes()
-                    }
-                },
                 onDeactivateSafeZone = {
                     viewModel.lockSafeZone()
-                    viewModel.clearSelection()
                     navController.navigate("home") {
                         popUpTo(0) { inclusive = true }
                     }
@@ -337,15 +289,6 @@ fun AppNavigation(
             BookNotesScreen(
                 book = book,
                 notes = bookNotes,
-                sortOrder = sortOrder,
-                onSortOrderChange = { viewModel.setSortOrder(it) },
-                isSelectionMode = isSelectionMode,
-                selectedNoteIds = selectedNoteIds,
-                onStartSelection = { viewModel.startSelection(it) },
-                onToggleSelection = { viewModel.toggleNoteSelection(it) },
-                onSelectAll = { viewModel.selectAll(it) },
-                onClearSelection = { viewModel.clearSelection() },
-                onDeleteSelected = { viewModel.deleteSelectedNotes() },
                 onNoteClick = { note ->
                     navController.navigate("editor/${if (book.isSecret) "secret" else "public"}/${note.id}")
                 },
@@ -353,7 +296,6 @@ fun AppNavigation(
                     navController.navigate("editor/${if (book.isSecret) "secret" else "public"}/new")
                 },
                 onNavigateBack = {
-                    viewModel.clearSelection()
                     navController.popBackStack()
                 }
             )

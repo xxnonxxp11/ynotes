@@ -26,10 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.uamo.ynotes.data.NoteEntity
-import app.uamo.ynotes.data.SortOrder
 import app.uamo.ynotes.ui.components.NoteCard
-import app.uamo.ynotes.ui.components.SelectionToolbar
-import app.uamo.ynotes.ui.components.SortMenuButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,15 +35,6 @@ fun HomeScreen(
     safeZonePassword: String,
     safeZoneTriggerMode: Int,
     isBiometricEnabled: Boolean,
-    sortOrder: SortOrder,
-    onSortOrderChange: (SortOrder) -> Unit,
-    isSelectionMode: Boolean,
-    selectedNoteIds: Set<String>,
-    onStartSelection: (String) -> Unit,
-    onToggleSelection: (String) -> Unit,
-    onSelectAll: (List<String>) -> Unit,
-    onClearSelection: () -> Unit,
-    onDeleteSelected: () -> Unit,
     onRequestSafeZone: () -> Unit,
     onRequestSafeZoneBiometric: () -> Unit,
     onAddNote: () -> Unit,
@@ -82,23 +70,21 @@ fun HomeScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
-            if (!isSelectionMode) {
-                Box(
-                    modifier = Modifier
-                        .padding(end = 8.dp, bottom = 8.dp)
-                        .background(
-                            brush = app.uamo.ynotes.ui.theme.AuroraPrimary,
-                            shape = RoundedCornerShape(20.dp)
-                        )
-                        .clickable { onAddNote() }
-                        .padding(horizontal = 20.dp, vertical = 16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Edit, "Añadir Nota", tint = Color.White)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Nueva nota", color = Color.White, fontWeight = FontWeight.Bold)
-                    }
+            Box(
+                modifier = Modifier
+                    .padding(end = 8.dp, bottom = 8.dp)
+                    .background(
+                        brush = app.uamo.ynotes.ui.theme.AuroraPrimary,
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                    .clickable { onAddNote() }
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Edit, "Añadir Nota", tint = Color.White)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Nueva nota", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -108,129 +94,114 @@ fun HomeScreen(
                 .padding(innerPadding)
                 .fillMaxSize()
         ) {
-            // Selection toolbar or normal toolbar
-            if (isSelectionMode) {
-                SelectionToolbar(
-                    selectedCount = selectedNoteIds.size,
-                    totalCount = filteredNotes.size,
-                    onSelectAll = { onSelectAll(filteredNotes.map { it.id }) },
-                    onDelete = onDeleteSelected,
-                    onClearSelection = onClearSelection
-                )
-            } else {
-                Row(
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .weight(1f)
+                        .height(52.dp),
+                    shape = RoundedCornerShape(50.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    tonalElevation = 0.dp
                 ) {
-                    Surface(
+                    Row(
                         modifier = Modifier
-                            .weight(1f)
-                            .height(52.dp),
-                        shape = RoundedCornerShape(50.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        tonalElevation = 0.dp
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Buscar",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(24.dp).pointerInput(Unit) {
+                                detectTapGestures(
+                                    onLongPress = {
+                                        if (safeZoneTriggerMode == 1) {
+                                            if (isBiometricEnabled) onRequestSafeZoneBiometric()
+                                            else onRequestSafeZone()
+                                        }
+                                    }
+                                )
+                            }
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Box(modifier = Modifier.weight(1f)) {
+                            if (searchQuery.isEmpty()) {
+                                Text(
+                                    text = "Buscar notas",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                            }
+                            BasicTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                textStyle = TextStyle(
+                                    fontSize = 16.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                ),
+                                modifier = Modifier.fillMaxWidth(),
+                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                singleLine = true
+                            )
+                        }
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(24.dp)) {
+                                Icon(Icons.Default.Close, contentDescription = "Limpiar", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Surface(
+                    modifier = Modifier.height(52.dp),
+                    shape = RoundedCornerShape(50.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    tonalElevation = 0.dp
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onTrashClick) {
                             Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = "Buscar",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(24.dp).pointerInput(Unit) {
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Papelera",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(onClick = onBooksClick) {
+                            Icon(
+                                imageVector = Icons.Default.MenuBook,
+                                contentDescription = "Libros",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .pointerInput(Unit) {
                                     detectTapGestures(
+                                        onTap = { onSettingsClick() },
                                         onLongPress = {
-                                            if (safeZoneTriggerMode == 1) {
+                                            if (safeZoneTriggerMode == 2) {
                                                 if (isBiometricEnabled) onRequestSafeZoneBiometric()
                                                 else onRequestSafeZone()
                                             }
                                         }
                                     )
-                                }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Configuración",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Box(modifier = Modifier.weight(1f)) {
-                                if (searchQuery.isEmpty()) {
-                                    Text(
-                                        text = "Buscar notas",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                    )
-                                }
-                                BasicTextField(
-                                    value = searchQuery,
-                                    onValueChange = { searchQuery = it },
-                                    textStyle = TextStyle(
-                                        fontSize = 16.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    ),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                                    singleLine = true
-                                )
-                            }
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(24.dp)) {
-                                    Icon(Icons.Default.Close, contentDescription = "Limpiar", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    Surface(
-                        modifier = Modifier.height(52.dp),
-                        shape = RoundedCornerShape(50.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        tonalElevation = 0.dp
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            SortMenuButton(
-                                currentSort = sortOrder,
-                                onSortChange = onSortOrderChange
-                            )
-                            IconButton(onClick = onTrashClick) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "Papelera",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            IconButton(onClick = onBooksClick) {
-                                Icon(
-                                    imageVector = Icons.Default.MenuBook,
-                                    contentDescription = "Libros",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .pointerInput(Unit) {
-                                        detectTapGestures(
-                                            onTap = { onSettingsClick() },
-                                            onLongPress = {
-                                                if (safeZoneTriggerMode == 2) {
-                                                    if (isBiometricEnabled) onRequestSafeZoneBiometric()
-                                                    else onRequestSafeZone()
-                                                }
-                                            }
-                                        )
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Settings,
-                                    contentDescription = "Configuración",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
                         }
                     }
                 }
@@ -274,18 +245,7 @@ fun HomeScreen(
                             )
                         }
                         items(pinnedNotes, key = { it.id }) { note ->
-                            NoteCard(
-                                note = note,
-                                isSelectionMode = isSelectionMode,
-                                isSelected = note.id in selectedNoteIds,
-                                onClick = { n ->
-                                    if (isSelectionMode) onToggleSelection(n.id)
-                                    else onNoteClick(n)
-                                },
-                                onLongClick = { n -> 
-                                    if (!isSelectionMode) onStartSelection(n.id)
-                                }
-                            )
+                            NoteCard(note = note, onClick = onNoteClick)
                         }
                     }
 
@@ -301,18 +261,7 @@ fun HomeScreen(
                             }
                         }
                         items(unpinnedNotes, key = { it.id }) { note ->
-                            NoteCard(
-                                note = note,
-                                isSelectionMode = isSelectionMode,
-                                isSelected = note.id in selectedNoteIds,
-                                onClick = { n ->
-                                    if (isSelectionMode) onToggleSelection(n.id)
-                                    else onNoteClick(n)
-                                },
-                                onLongClick = { n -> 
-                                    if (!isSelectionMode) onStartSelection(n.id)
-                                }
-                            )
+                            NoteCard(note = note, onClick = onNoteClick)
                         }
                     }
                 }

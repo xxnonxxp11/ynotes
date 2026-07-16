@@ -46,7 +46,7 @@ class MainActivity : FragmentActivity() {
                     val hasSeenWelcome = sharedPref.getBoolean("HAS_SEEN_WELCOME", false)
                     val startDestination = if (hasSeenWelcome) "home" else "welcome"
                     
-                    val isAppHidingEnabled = remember { mutableStateOf(sharedPref.getBoolean("APP_HIDING_ENABLED", true)) }
+                    val appShortcutMode = remember { mutableStateOf(sharedPref.getInt("APP_SHORTCUT_MODE", 0)) }
 
                     var isAuthenticated by remember { mutableStateOf(!isBiometricEnabled.value) }
 
@@ -86,7 +86,7 @@ class MainActivity : FragmentActivity() {
                             safeZonePassword = safeZonePassword,
                             safeZoneTriggerMode = safeZoneTriggerMode,
                             isBiometricEnabled = isBiometricEnabled,
-                            isAppHidingEnabled = isAppHidingEnabled,
+                            isAppHidingEnabled = appShortcutMode,
                             onSaveSafeZone = { newPwd, mode ->
                                 val editor = sharedPref.edit()
                                 editor.putString("SAFE_ZONE_PWD", newPwd)
@@ -99,9 +99,9 @@ class MainActivity : FragmentActivity() {
                                 sharedPref.edit().putBoolean("BIOMETRIC_ENABLED", enabled).apply()
                                 isBiometricEnabled.value = enabled
                             },
-                            onAppHidingToggle = { enabled ->
-                                sharedPref.edit().putBoolean("APP_HIDING_ENABLED", enabled).apply()
-                                isAppHidingEnabled.value = enabled
+                            onAppHidingToggle = { mode ->
+                                sharedPref.edit().putInt("APP_SHORTCUT_MODE", mode).apply()
+                                appShortcutMode.value = mode
                             },
                             onWelcomeCompleted = {
                                 sharedPref.edit().putBoolean("HAS_SEEN_WELCOME", true).apply()
