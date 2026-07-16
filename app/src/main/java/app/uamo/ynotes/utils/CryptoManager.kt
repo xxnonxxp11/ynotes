@@ -148,4 +148,50 @@ object CryptoManager {
             return encryptedTextBase64
         }
     }
+
+    /**
+     * Encrypt a file using streaming AES-GCM.
+     * Writes [IV (12 bytes)][encrypted data] to the output.
+     */
+    fun encryptFile(inputStream: java.io.InputStream, outputStream: java.io.OutputStream) {
+        val key = getSecretKey()
+        val cipher = Cipher.getInstance(TRANSFORMATION)
+        cipher.init(Cipher.ENCRYPT_MODE, key)
+        outputStream.write(cipher.iv) // 12 bytes IV
+        val buffer = ByteArray(8192)
+        var bytesRead: Int
+        while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+            val output = cipher.update(buffer, 0, bytesRead)
+            if (output != null) outputStream.write(output)
+        }
+        val finalOutput = cipher.doFinal()
+        if (finalOutput != null) outputStream.write(finalOutput)
+        outputStream.flush()
+    }
+
+    /**
+     * Decrypt a file that was encrypted with encryptFile().
+     * Reads [IV (12 bytes)][encrypted data] from the input.
+     */
+    fun decryptFile(inputStream: java.io.InputStream, outputStream: java.io.OutputStream) {
+        val key = getSecretKey()
+        val iv = ByteArray(12)
+        var totalRead = 0
+        while (totalRead < 12) {
+            val read = inputStream.read(iv, totalRead, 12 - totalRead)
+            if (read == -1) throw java.io.IOException("Unexpected end of encrypted file")
+            totalRead += read
+        }
+        val cipher = Cipher.getInstance(TRANSFORMATION)
+        cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, iv))
+        val buffer = ByteArray(8192)
+        var bytesRead: Int
+        while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+            val output = cipher.update(buffer, 0, bytesRead)
+            if (output != null) outputStream.write(output)
+        }
+        val finalOutput = cipher.doFinal()
+        if (finalOutput != null) outputStream.write(finalOutput)
+        outputStream.flush()
+    }
 }

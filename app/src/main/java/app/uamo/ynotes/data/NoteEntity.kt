@@ -15,5 +15,6 @@ data class NoteEntity(
     val isPinned: Boolean = false,
     val bookId: String? = null,
     val isDeleted: Boolean = false,
-    val isBodyHidden: Boolean = false
+    val isBodyHidden: Boolean = false,
+    val mediaFiles: String = ""
 )

@@ -1,6 +1,10 @@
 package app.uamo.ynotes.ui.screens
 
+import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -10,7 +14,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -20,15 +26,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.uamo.ynotes.data.BookEntity
 import app.uamo.ynotes.data.NoteEntity
+import app.uamo.ynotes.utils.MediaManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.UUID
 
 val NoteColors = listOf(
@@ -56,7 +68,7 @@ fun EditorScreen(
     editingNote: NoteEntity?,
     isSecret: Boolean,
     books: List<BookEntity>,
-    onSave: (id: String?, title: String, body: String, color: Long, isPinned: Boolean, bookId: String?, isBodyHidden: Boolean) -> Unit,
+    onSave: (id: String?, title: String, body: String, color: Long, isPinned: Boolean, bookId: String?, isBodyHidden: Boolean, mediaFiles: String) -> Unit,
     onDelete: (id: String) -> Unit,
     onNavigateBack: () -> Unit
 ) {
@@ -71,15 +83,69 @@ fun EditorScreen(
     var isBodyHidden by remember { mutableStateOf(editingNote?.isBodyHidden ?: false) }
     var isDeleted by remember { mutableStateOf(false) }
 
+    // Media state
+    var mediaFileNames by remember {
+        mutableStateOf(
+            editingNote?.mediaFiles?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
+        )
+    }
+    val mediaBitmaps = remember { mutableStateMapOf<String, Bitmap>() }
+
     var showColorPicker by remember { mutableStateOf(false) }
     var showBookMenu by remember { mutableStateOf(false) }
 
+    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var debounceJob by remember { mutableStateOf<Job?>(null) }
 
     val cursorColor = if (isSecret) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
     val backgroundColor = if (noteColor == 0L) MaterialTheme.colorScheme.background else Color(noteColor)
-    val context = androidx.compose.ui.platform.LocalContext.current
+
+    fun mediaFilesString(): String = mediaFileNames.joinToString("|")
+
+    // Load existing media thumbnails
+    LaunchedEffect(mediaFileNames) {
+        mediaFileNames.forEach { fileName ->
+            if (!mediaBitmaps.containsKey(fileName)) {
+                withContext(Dispatchers.IO) {
+                    MediaManager.loadMediaBitmap(context, stableNoteId, fileName, isSecret)
+                }?.let { bitmap ->
+                    mediaBitmaps[fileName] = bitmap
+                }
+            }
+        }
+    }
+
+    // Image picker launcher
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            coroutineScope.launch {
+                val newNames = mutableListOf<String>()
+                uris.forEach { uri ->
+                    withContext(Dispatchers.IO) {
+                        MediaManager.saveMedia(context, stableNoteId, uri, isSecret)
+                    }?.let { name ->
+                        newNames.add(name)
+                        // Load thumbnail immediately
+                        withContext(Dispatchers.IO) {
+                            MediaManager.loadMediaBitmap(context, stableNoteId, name, isSecret)
+                        }?.let { bitmap ->
+                            mediaBitmaps[name] = bitmap
+                        }
+                    }
+                }
+                if (newNames.isNotEmpty()) {
+                    mediaFileNames = mediaFileNames + newNames
+                    // Save immediately after adding media
+                    if (!isDeleted && (titleText.trim().isNotBlank() || bodyText.trim().isNotBlank() || mediaFileNames.isNotEmpty())) {
+                        onSave(stableNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId, isBodyHidden, mediaFilesString())
+                    }
+                }
+            }
+        }
+    }
 
     // Debounced save: cancels the previous pending save and waits 500ms of silence
     fun scheduleSave() {
@@ -87,8 +153,8 @@ fun EditorScreen(
         debounceJob?.cancel()
         debounceJob = coroutineScope.launch {
             delay(500)
-            if (!isDeleted && (titleText.trim().isNotBlank() || bodyText.trim().isNotBlank())) {
-                onSave(stableNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId, isBodyHidden)
+            if (!isDeleted && (titleText.trim().isNotBlank() || bodyText.trim().isNotBlank() || mediaFileNames.isNotEmpty())) {
+                onSave(stableNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId, isBodyHidden, mediaFilesString())
             }
         }
     }
@@ -97,8 +163,8 @@ fun EditorScreen(
     fun saveNow() {
         if (isDeleted) return
         debounceJob?.cancel()
-        if (titleText.trim().isNotBlank() || bodyText.trim().isNotBlank()) {
-            onSave(stableNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId, isBodyHidden)
+        if (titleText.trim().isNotBlank() || bodyText.trim().isNotBlank() || mediaFileNames.isNotEmpty()) {
+            onSave(stableNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId, isBodyHidden, mediaFilesString())
         }
     }
 
@@ -138,6 +204,13 @@ fun EditorScreen(
                     }
                     IconButton(onClick = { showColorPicker = !showColorPicker }) {
                         Icon(Icons.Default.Palette, contentDescription = "Color", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    IconButton(onClick = { imagePickerLauncher.launch("image/*") }) {
+                        Icon(
+                            Icons.Default.AttachFile,
+                            contentDescription = "Adjuntar imagen",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                     IconButton(onClick = {
                         isBodyHidden = !isBodyHidden
@@ -216,6 +289,67 @@ fun EditorScreen(
                                     contentDescription = "Seleccionado",
                                     tint = Color.White.copy(alpha = 0.9f),
                                     modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Media thumbnails strip
+            if (mediaFileNames.isNotEmpty()) {
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(mediaFileNames) { fileName ->
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            mediaBitmaps[fileName]?.let { bitmap ->
+                                Image(
+                                    bitmap = bitmap.asImageBitmap(),
+                                    contentDescription = "Imagen adjunta",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } ?: Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            }
+                            // Delete button
+                            IconButton(
+                                onClick = {
+                                    coroutineScope.launch(Dispatchers.IO) {
+                                        MediaManager.deleteMediaFile(context, stableNoteId, fileName, isSecret)
+                                    }
+                                    mediaBitmaps.remove(fileName)
+                                    mediaFileNames = mediaFileNames - fileName
+                                    saveNow()
+                                },
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .size(24.dp)
+                                    .background(
+                                        Color.Black.copy(alpha = 0.5f),
+                                        CircleShape
+                                    )
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Eliminar imagen",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(14.dp)
                                 )
                             }
                         }
