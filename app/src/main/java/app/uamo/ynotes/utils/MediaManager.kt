@@ -32,17 +32,28 @@ object MediaManager {
             val dir = getMediaDir(context, noteId, isSecret)
             val targetFile = File(dir, if (isSecret) fileName.replace(".jpg", ".enc") else fileName)
 
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                if (isSecret) {
-                    FileOutputStream(targetFile).use { output ->
-                        CryptoManager.encryptFile(input, output)
+            val bitmap = decodeSampledBitmapFromUri(context, uri, 1920) ?: return null
+
+            if (isSecret) {
+                val tempFile = File(context.cacheDir, "temp_compress_${UUID.randomUUID()}.jpg")
+                try {
+                    FileOutputStream(tempFile).use { fos ->
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, 85, fos)
                     }
-                } else {
-                    FileOutputStream(targetFile).use { output ->
-                        input.copyTo(output, bufferSize = 8192)
+                    FileInputStream(tempFile).use { input ->
+                        FileOutputStream(targetFile).use { output ->
+                            CryptoManager.encryptFile(input, output)
+                        }
                     }
+                } finally {
+                    if (tempFile.exists()) tempFile.delete()
                 }
-            } ?: return null
+            } else {
+                FileOutputStream(targetFile).use { output ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 85, output)
+                }
+            }
+            bitmap.recycle()
 
             fileName
         } catch (e: Exception) {
@@ -67,14 +78,20 @@ object MediaManager {
             if (isSecret) {
                 val encFile = File(getMediaDir(context, noteId, true), fileName.replace(".jpg", ".enc"))
                 if (!encFile.exists()) return null
-                // Decrypt to a temp byte array, then decode
-                val decryptedBytes = java.io.ByteArrayOutputStream().use { baos ->
-                    FileInputStream(encFile).use { input ->
-                        CryptoManager.decryptFile(input, baos)
+                
+                val tempFile = File(context.cacheDir, "temp_decrypted_${UUID.randomUUID()}.jpg")
+                return try {
+                    FileOutputStream(tempFile).use { output ->
+                        FileInputStream(encFile).use { input ->
+                            CryptoManager.decryptFile(input, output)
+                        }
                     }
-                    baos.toByteArray()
+                    decodeSampledBitmapFromFile(tempFile.absolutePath, maxSize)
+                } finally {
+                    if (tempFile.exists()) {
+                        tempFile.delete()
+                    }
                 }
-                decodeSampledBitmap(decryptedBytes, maxSize)
             } else {
                 val file = File(getMediaDir(context, noteId, false), fileName)
                 if (!file.exists()) return null
@@ -123,12 +140,21 @@ object MediaManager {
         return BitmapFactory.decodeFile(path, options)
     }
 
-    private fun decodeSampledBitmap(data: ByteArray, maxSize: Int): Bitmap? {
-        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeByteArray(data, 0, data.size, options)
-        options.inSampleSize = calculateInSampleSize(options, maxSize, maxSize)
-        options.inJustDecodeBounds = false
-        return BitmapFactory.decodeByteArray(data, 0, data.size, options)
+    private fun decodeSampledBitmapFromUri(context: Context, uri: Uri, maxSize: Int): Bitmap? {
+        return try {
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                BitmapFactory.decodeStream(input, null, options)
+            }
+            options.inSampleSize = calculateInSampleSize(options, maxSize, maxSize)
+            options.inJustDecodeBounds = false
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                BitmapFactory.decodeStream(input, null, options)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
     }
 
     private fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
