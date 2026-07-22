@@ -17,11 +17,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.Intent
+import android.net.Uri
+import app.uamo.ynotes.ui.components.CustomIcons
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,6 +47,7 @@ fun SettingsScreen(
     var showDialog by remember { mutableStateOf(false) }
     var inputPassword by remember { mutableStateOf("") }
     var inputMode by remember { mutableStateOf(0) }
+    var showDonationDialog by remember { mutableStateOf(false) }
     
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("yNotesPrefs", android.content.Context.MODE_PRIVATE) }
@@ -440,9 +445,53 @@ fun SettingsScreen(
                         iconTint = MaterialTheme.colorScheme.primary,
                         onClick = {}
                     )
+                    Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
+                    SettingItem(
+                        title = "Donaciones.. Llegar a PlayStore <3",
+                        subtitle = "Apóyame para subir la app a la Play Store",
+                        icon = CustomIcons.GooglePlay,
+                        iconTint = MaterialTheme.colorScheme.primary,
+                        onClick = { showDonationDialog = true }
+                    )
                 }
             }
         }
+    }
+    
+    if (showDonationDialog) {
+        AlertDialog(
+            onDismissRequest = { showDonationDialog = false },
+            title = { Text("Donaciones", style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 20.sp)) },
+            text = { Text("¿Con qué plataforma deseas apoyar el proyecto?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://app.binance.com/uni-qr/EVqNr5tY"))
+                        context.startActivity(intent)
+                        showDonationDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFCD535), contentColor = Color.Black)
+                ) {
+                    Icon(CustomIcons.Binance, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Binance")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.paypal.me/shhkk"))
+                        context.startActivity(intent)
+                        showDonationDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00457C), contentColor = Color.White)
+                ) {
+                    Icon(CustomIcons.PayPal, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("PayPal")
+                }
+            }
+        )
     }
 }
 }
