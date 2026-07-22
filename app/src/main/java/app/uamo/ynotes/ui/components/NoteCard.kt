@@ -48,6 +48,8 @@ import kotlinx.coroutines.withContext
 
 import app.uamo.ynotes.ui.theme.AuroraPrimary
 import app.uamo.ynotes.ui.theme.GlassBorder
+import app.uamo.ynotes.ui.theme.LocalAppTheme
+import app.uamo.ynotes.ui.theme.AppThemeType
 
 @Composable
 fun NoteCard(
@@ -58,6 +60,7 @@ fun NoteCard(
     isSelectionMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    val currentTheme = LocalAppTheme.current
     val cardColor = if (note.color == 0L) MaterialTheme.colorScheme.surfaceVariant else Color(note.color)
     val context = LocalContext.current
 
@@ -79,13 +82,14 @@ fun NoteCard(
     val borderColor by animateColorAsState(
         targetValue = when {
             isSelected -> MaterialTheme.colorScheme.primary
-            else -> GlassBorder
+            currentTheme == AppThemeType.SAMSUNG -> Color.Transparent
+            else -> MaterialTheme.colorScheme.outline
         },
         animationSpec = tween(200),
         label = "border"
     )
     val borderWidth by animateDpAsState(
-        targetValue = if (isSelected) 2.5.dp else 1.dp,
+        targetValue = if (isSelected) 2.5.dp else if (currentTheme == AppThemeType.SAMSUNG) 0.dp else 1.dp,
         animationSpec = tween(200),
         label = "borderWidth"
     )
@@ -103,8 +107,8 @@ fun NoteCard(
     val baseModifier = modifier
         .fillMaxWidth()
         .scale(scale)
-        .clip(RoundedCornerShape(28.dp))
-        .border(borderWidth, borderColor, RoundedCornerShape(28.dp))
+        .clip(RoundedCornerShape(if (currentTheme == AppThemeType.GOOGLE) 16.dp else 28.dp))
+        .border(borderWidth, borderColor, RoundedCornerShape(if (currentTheme == AppThemeType.GOOGLE) 16.dp else 28.dp))
         .pointerInput(isSelectionMode) {
             detectTapGestures(
                 onPress = {
@@ -122,7 +126,11 @@ fun NoteCard(
         }
 
     val finalModifier = if (note.isPinned && !isSelected) {
-        baseModifier.background(AuroraPrimary)
+        if (currentTheme == AppThemeType.AMOLED) {
+            baseModifier.background(AuroraPrimary)
+        } else {
+            baseModifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+        }
     } else if (isSelected) {
         baseModifier.background(
             MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
@@ -133,11 +141,11 @@ fun NoteCard(
 
     Card(
         modifier = finalModifier,
-        shape = RoundedCornerShape(28.dp),
+        shape = RoundedCornerShape(if (currentTheme == AppThemeType.GOOGLE) 16.dp else 28.dp),
         colors = CardDefaults.cardColors(
             containerColor = when {
                 isSelected -> Color.Transparent
-                note.isPinned -> Color.Transparent
+                note.isPinned && currentTheme == AppThemeType.AMOLED -> Color.Transparent
                 else -> cardColor
             }
         ),

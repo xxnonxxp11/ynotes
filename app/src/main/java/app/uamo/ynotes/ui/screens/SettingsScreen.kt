@@ -35,6 +35,8 @@ fun SettingsScreen(
     isBooksEnabled: Boolean,
     onBiometricToggle: (Boolean) -> Unit,
     onAppHidingToggle: (Int) -> Unit,
+    currentThemeType: Int,
+    onThemeChanged: (Int) -> Unit,
     onBooksToggle: (Boolean) -> Unit,
     onNavigateBack: () -> Unit
 ) {
@@ -352,6 +354,76 @@ fun SettingsScreen(
                         )
                         Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
                     }
+
+                    // Theme Selector
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 16.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Palette,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(8.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    "Apariencia", 
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), 
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    when (currentThemeType) {
+                                        0 -> "Actual (Por defecto)"
+                                        1 -> "Google Notes"
+                                        2 -> "Samsung Notes"
+                                        else -> "Actual (Por defecto)"
+                                    },
+                                    style = MaterialTheme.typography.bodyMedium, 
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        val themeLabels = listOf("Actual", "Google", "Samsung")
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surface),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            themeLabels.forEachIndexed { index, label ->
+                                val isSelected = currentThemeType == index
+                                Surface(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { onThemeChanged(index) },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface
+                                ) {
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal),
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(vertical = 10.dp),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
 
                     SettingItem(
                         title = "Acerca de la app", 

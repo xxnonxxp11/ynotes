@@ -23,9 +23,11 @@ fun AppNavigation(
     safeZoneTriggerMode: State<Int>,
     isBiometricEnabled: MutableState<Boolean>,
     isAppHidingEnabled: MutableState<Int>,
+    currentThemeType: State<Int>,
     onSaveSafeZone: (String, Int) -> Unit,
     onBiometricToggle: (Boolean) -> Unit,
     onAppHidingToggle: (Int) -> Unit,
+    onThemeChanged: (Int) -> Unit,
     onWelcomeCompleted: () -> Unit
 ) {
     val navController = rememberNavController()
@@ -244,9 +246,12 @@ fun AppNavigation(
                 isAppHidingEnabled = isAppHidingEnabled.value,
                 onBiometricToggle = { enabled ->
                     onBiometricToggle(enabled)
-                },
                 onAppHidingToggle = { mode ->
                     onAppHidingToggle(mode)
+                },
+                currentThemeType = currentThemeType.value,
+                onThemeChanged = { newThemeIdx ->
+                    onThemeChanged(newThemeIdx)
                 },
                 isBooksEnabled = isBooksEnabled,
                 onBooksToggle = { enabled ->

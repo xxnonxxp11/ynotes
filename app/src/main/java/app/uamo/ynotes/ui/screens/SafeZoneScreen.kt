@@ -44,6 +44,8 @@ import app.uamo.ynotes.data.NoteEntity
 import app.uamo.ynotes.data.SortOrder
 import app.uamo.ynotes.data.applySortOrder
 import app.uamo.ynotes.ui.components.NoteCard
+import app.uamo.ynotes.ui.theme.LocalAppTheme
+import app.uamo.ynotes.ui.theme.AppThemeType
 import app.uamo.ynotes.utils.AppCacheManager
 import app.uamo.ynotes.utils.AppInfo
 import app.uamo.ynotes.utils.getInstalledApps
@@ -171,17 +173,23 @@ fun SafeZoneScreen(
     }
 
     val appsToShow = cachedHiddenApps.filter { hiddenAppPackages.contains(it.packageName) }
+    val currentTheme = LocalAppTheme.current
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
+            val fabShape = when (currentTheme) {
+                AppThemeType.GOOGLE -> RoundedCornerShape(16.dp)
+                AppThemeType.SAMSUNG -> CircleShape
+                else -> RoundedCornerShape(16.dp)
+            }
             ExtendedFloatingActionButton(
                 onClick = onAddNote,
                 icon = { Icon(Icons.Default.Lock, "Añadir Secreto") },
                 text = { Text("Nuevo secreto") },
                 containerColor = MaterialTheme.colorScheme.errorContainer,
                 contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                shape = RoundedCornerShape(16.dp)
+                shape = fabShape
             )
         }
     ) { innerPadding ->
@@ -201,7 +209,7 @@ fun SafeZoneScreen(
                     modifier = Modifier
                         .weight(1f)
                         .height(52.dp),
-                    shape = RoundedCornerShape(50.dp),
+                    shape = if (currentTheme == AppThemeType.GOOGLE) RoundedCornerShape(16.dp) else RoundedCornerShape(50.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     tonalElevation = 0.dp
                 ) {

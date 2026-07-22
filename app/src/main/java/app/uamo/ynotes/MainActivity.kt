@@ -12,24 +12,30 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.uamo.ynotes.ui.AppNavigation
 import app.uamo.ynotes.ui.NotesViewModel
 import app.uamo.ynotes.ui.theme.YNotesTheme
+import app.uamo.ynotes.ui.theme.AppThemeType
 
 class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            YNotesTheme {
+            val context = LocalContext.current
+            val sharedPref = remember { context.getSharedPreferences("yNotesPrefs", Context.MODE_PRIVATE) }
+            val themeTypeIndex = remember { mutableStateOf(sharedPref.getInt("APP_THEME", 0)) }
+            val currentTheme = AppThemeType.entries.getOrElse(themeTypeIndex.value) { AppThemeType.AMOLED }
+
+            YNotesTheme(themeType = currentTheme) {
                 val notesViewModel: NotesViewModel = viewModel()
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val sharedPref = remember { getSharedPreferences("yNotesPrefs", Context.MODE_PRIVATE) }
                     
                     val safeZonePassword = remember { 
                         mutableStateOf(sharedPref.getString("SAFE_ZONE_PWD", "") ?: "") 
@@ -87,6 +93,7 @@ class MainActivity : FragmentActivity() {
                             safeZoneTriggerMode = safeZoneTriggerMode,
                             isBiometricEnabled = isBiometricEnabled,
                             isAppHidingEnabled = appShortcutMode,
+                            currentThemeType = themeTypeIndex,
                             onSaveSafeZone = { newPwd, mode ->
                                 val editor = sharedPref.edit()
                                 editor.putString("SAFE_ZONE_PWD", newPwd)
@@ -102,6 +109,10 @@ class MainActivity : FragmentActivity() {
                             onAppHidingToggle = { mode ->
                                 sharedPref.edit().putInt("APP_SHORTCUT_MODE", mode).apply()
                                 appShortcutMode.value = mode
+                            },
+                            onThemeChanged = { newThemeIdx ->
+                                sharedPref.edit().putInt("APP_THEME", newThemeIdx).apply()
+                                themeTypeIndex.value = newThemeIdx
                             },
                             onWelcomeCompleted = {
                                 sharedPref.edit().putBoolean("HAS_SEEN_WELCOME", true).apply()

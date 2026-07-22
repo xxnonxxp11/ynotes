@@ -33,6 +33,8 @@ import app.uamo.ynotes.data.NoteEntity
 import app.uamo.ynotes.data.SortOrder
 import app.uamo.ynotes.data.applySortOrder
 import app.uamo.ynotes.ui.components.NoteCard
+import app.uamo.ynotes.ui.theme.LocalAppTheme
+import app.uamo.ynotes.ui.theme.AppThemeType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,13 +92,20 @@ fun HomeScreen(
                 label = "fabScale"
             )
 
+            val currentTheme = LocalAppTheme.current
+            val fabShape = when (currentTheme) {
+                AppThemeType.GOOGLE -> RoundedCornerShape(16.dp)
+                AppThemeType.SAMSUNG -> CircleShape
+                else -> RoundedCornerShape(20.dp)
+            }
+
             Box(
                 modifier = Modifier
                     .padding(end = 8.dp, bottom = 8.dp)
                     .scale(fabScale)
                     .background(
-                        brush = app.uamo.ynotes.ui.theme.AuroraPrimary,
-                        shape = RoundedCornerShape(20.dp)
+                        brush = if (currentTheme == AppThemeType.AMOLED) app.uamo.ynotes.ui.theme.AuroraPrimary else SolidColor(MaterialTheme.colorScheme.primary),
+                        shape = fabShape
                     )
                     .pointerInput(Unit) {
                         detectTapGestures(
@@ -140,7 +149,7 @@ fun HomeScreen(
                     modifier = Modifier
                         .weight(1f)
                         .height(52.dp),
-                    shape = RoundedCornerShape(50.dp),
+                    shape = if (currentTheme == AppThemeType.GOOGLE) RoundedCornerShape(16.dp) else RoundedCornerShape(50.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     tonalElevation = 0.dp
                 ) {
