@@ -78,6 +78,7 @@ fun HomeScreen(
 
     val pinnedNotes = remember(filteredNotes) { filteredNotes.filter { it.isPinned } }
     val unpinnedNotes = remember(filteredNotes) { filteredNotes.filter { !it.isPinned } }
+    val currentTheme = LocalAppTheme.current
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -92,7 +93,6 @@ fun HomeScreen(
                 label = "fabScale"
             )
 
-            val currentTheme = LocalAppTheme.current
             val fabShape = when (currentTheme) {
                 AppThemeType.GOOGLE -> RoundedCornerShape(16.dp)
                 AppThemeType.SAMSUNG -> CircleShape
