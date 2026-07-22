@@ -110,6 +110,8 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
      * Called after successful biometric authentication.
      * Decrypts all secret notes into memory.
      */
+    private var syncJob: kotlinx.coroutines.Job? = null
+
     fun unlockSafeZone() {
         _isSafeZoneUnlocked.value = true
         // Decrypt current raw notes in batch (key lookup once)
@@ -119,7 +121,8 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
             _decryptedSecretNotes.value = decrypted
         }
         // Keep decrypted cache in sync while unlocked
-        viewModelScope.launch {
+        syncJob?.cancel()
+        syncJob = viewModelScope.launch {
             _rawSecretNotes.collect { rawNotes ->
                 if (_isSafeZoneUnlocked.value) {
                     val decrypted = CryptoManager.decryptBatch(rawNotes)
