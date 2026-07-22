@@ -1,0 +1,10 @@
+yNotes es una aplicación moderna de notas diseñada para ofrecer la máxima privacidad y comodidad.
+
+Características principales:
+- Interfaz AMOLED oscura optimizada.
+- Zona Segura: Un área completamente encriptada protegida por biometría (huella dactilar) o contraseña.
+- Modo Oculto: Selecciona íconos de apps falsas para ocultar el acceso a tu zona segura.
+- Temas visuales: Cambia entre la apariencia actual, un diseño al estilo Google Notes o al estilo Samsung Notes.
+- Buscador integrado y sistema de organización eficiente.
+
+Protege tus secretos, organiza tus ideas y mantén todo a salvo con yNotes.
