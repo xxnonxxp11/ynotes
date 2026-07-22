@@ -650,7 +650,7 @@ private fun AddAppButton(iconSize: Int, onClick: () -> Unit) {
                         tryAwaitRelease()
                         isPressed = false
                     },
-                    onTap = onClick
+                    onTap = { onClick() }
                 )
             }
             .padding(4.dp)
