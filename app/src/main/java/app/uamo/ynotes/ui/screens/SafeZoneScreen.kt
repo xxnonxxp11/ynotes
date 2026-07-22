@@ -50,6 +50,7 @@ import kotlinx.coroutines.withContext
 fun SafeZoneScreen(
     notes: List<NoteEntity>,
     isAppHidingEnabled: Int, // 0=disabled, 1=normal(apps tab), 2=reverse(apps main)
+    isBooksEnabled: Boolean,
     onDeactivateSafeZone: () -> Unit,
     onAddNote: () -> Unit,
     onNoteClick: (NoteEntity) -> Unit,
@@ -304,12 +305,14 @@ fun SafeZoneScreen(
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        IconButton(onClick = onBooksClick) {
-                            Icon(
-                                imageVector = Icons.Default.MenuBook,
-                                contentDescription = "Libros",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        if (isBooksEnabled) {
+                            IconButton(onClick = onBooksClick) {
+                                Icon(
+                                    imageVector = Icons.Default.MenuBook,
+                                    contentDescription = "Libros",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                         IconButton(onClick = onSettingsClick) {
                             Icon(

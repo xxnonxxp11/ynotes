@@ -37,6 +37,7 @@ fun HomeScreen(
     safeZonePassword: String,
     safeZoneTriggerMode: Int,
     isBiometricEnabled: Boolean,
+    isBooksEnabled: Boolean,
     onRequestSafeZone: () -> Unit,
     onRequestSafeZoneBiometric: () -> Unit,
     onAddNote: () -> Unit,
@@ -228,12 +229,14 @@ fun HomeScreen(
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        IconButton(onClick = onBooksClick) {
-                            Icon(
-                                imageVector = Icons.Default.MenuBook,
-                                contentDescription = "Libros",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        if (isBooksEnabled) {
+                            IconButton(onClick = onBooksClick) {
+                                Icon(
+                                    imageVector = Icons.Default.MenuBook,
+                                    contentDescription = "Libros",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                         Box(
                             modifier = Modifier

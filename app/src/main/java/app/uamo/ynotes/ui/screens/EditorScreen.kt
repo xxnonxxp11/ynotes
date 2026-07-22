@@ -67,6 +67,7 @@ val NoteColors = listOf(
 fun EditorScreen(
     editingNote: NoteEntity?,
     isSecret: Boolean,
+    isBooksEnabled: Boolean,
     books: List<BookEntity>,
     onSave: (id: String?, title: String, body: String, color: Long, isPinned: Boolean, bookId: String?, isBodyHidden: Boolean, mediaFiles: String) -> Unit,
     onDelete: (id: String) -> Unit,
@@ -201,6 +202,40 @@ fun EditorScreen(
                             contentDescription = "Fijar",
                             tint = if (isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                    if (isBooksEnabled && books.isNotEmpty()) {
+                        Box {
+                            IconButton(onClick = { showBookMenu = true }) {
+                                Icon(
+                                    Icons.Default.MenuBook,
+                                    contentDescription = "Libro",
+                                    tint = if (bookId != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showBookMenu,
+                                onDismissRequest = { showBookMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Sin libro") },
+                                    onClick = {
+                                        bookId = null
+                                        showBookMenu = false
+                                        saveNow()
+                                    }
+                                )
+                                books.forEach { book ->
+                                    DropdownMenuItem(
+                                        text = { Text(book.name) },
+                                        onClick = {
+                                            bookId = book.id
+                                            showBookMenu = false
+                                            saveNow()
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                     IconButton(onClick = { showColorPicker = !showColorPicker }) {
                         Icon(Icons.Default.Palette, contentDescription = "Color", tint = MaterialTheme.colorScheme.onSurfaceVariant)

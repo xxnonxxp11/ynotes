@@ -21,6 +21,15 @@ import java.util.UUID
 class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     private val noteDao = NoteDatabase.getDatabase(application).noteDao()
+    private val sharedPrefs = application.getSharedPreferences("yNotesPrefs", android.content.Context.MODE_PRIVATE)
+
+    private val _isBooksEnabled = MutableStateFlow(sharedPrefs.getBoolean("isBooksEnabled", false))
+    val isBooksEnabled: StateFlow<Boolean> = _isBooksEnabled.asStateFlow()
+
+    fun toggleBooksEnabled(enabled: Boolean) {
+        sharedPrefs.edit().putBoolean("isBooksEnabled", enabled).apply()
+        _isBooksEnabled.value = enabled
+    }
 
     // ──────────────────────────────────────────────
     // PUBLIC NOTES — Eagerly cached for instant load
@@ -180,6 +189,12 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteNote(id: String) {
         viewModelScope.launch {
             noteDao.moveToTrash(id)
+        }
+    }
+
+    fun deleteNotes(ids: List<String>) {
+        viewModelScope.launch {
+            ids.forEach { noteDao.moveToTrash(it) }
         }
     }
 

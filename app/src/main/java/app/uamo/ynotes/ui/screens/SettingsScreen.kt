@@ -32,8 +32,10 @@ fun SettingsScreen(
     onSaveSafeZone: (String, Int) -> Unit,
     isBiometricEnabled: Boolean,
     isAppHidingEnabled: Int,
+    isBooksEnabled: Boolean,
     onBiometricToggle: (Boolean) -> Unit,
     onAppHidingToggle: (Int) -> Unit,
+    onBooksToggle: (Boolean) -> Unit,
     onNavigateBack: () -> Unit
 ) {
     var showDialog by remember { mutableStateOf(false) }
@@ -283,6 +285,45 @@ fun SettingsScreen(
                             }
                             Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
                         }
+                        
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.MenuBook,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(8.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Sistema de Libros", 
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), 
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    if (isBooksEnabled) "Activado (Organiza tus notas)" else "Desactivado", 
+                                    style = MaterialTheme.typography.bodyMedium, 
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = isBooksEnabled,
+                                onCheckedChange = onBooksToggle
+                            )
+                        }
+                        Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), modifier = Modifier.padding(horizontal = 20.dp))
                         
                         SettingItem(
                             title = if (currentPassword.isEmpty()) "Crear Zona Segura" else "Cambiar Contraseña", 

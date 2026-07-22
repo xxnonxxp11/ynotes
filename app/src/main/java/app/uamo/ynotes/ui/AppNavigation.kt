@@ -34,6 +34,7 @@ fun AppNavigation(
     
     val publicNotes by viewModel.publicNotes.collectAsState()
     val secretNotes by viewModel.secretNotes.collectAsState()
+    val isBooksEnabled by viewModel.isBooksEnabled.collectAsState()
     
     val executor = ContextCompat.getMainExecutor(context)
 
@@ -131,6 +132,7 @@ fun AppNavigation(
                 onSettingsClick = {
                     navController.navigate("settings/home")
                 },
+                isBooksEnabled = isBooksEnabled,
                 onBooksClick = {
                     navController.navigate("books/public")
                 },
@@ -159,6 +161,7 @@ fun AppNavigation(
                 onSettingsClick = {
                     navController.navigate("settings/safe_zone")
                 },
+                isBooksEnabled = isBooksEnabled,
                 onBooksClick = {
                     navController.navigate("books/secret")
                 },
@@ -189,6 +192,7 @@ fun AppNavigation(
             EditorScreen(
                 editingNote = editingNote,
                 isSecret = isSecret,
+                isBooksEnabled = isBooksEnabled,
                 books = books.filter { it.isSecret == isSecret },
                 onSave = { id, title, body, color, isPinned, bookId, isBodyHidden, mediaFiles ->
                     // id is always the stableNoteId from EditorScreen (never null)
@@ -243,6 +247,10 @@ fun AppNavigation(
                 },
                 onAppHidingToggle = { mode ->
                     onAppHidingToggle(mode)
+                },
+                isBooksEnabled = isBooksEnabled,
+                onBooksToggle = { enabled ->
+                    viewModel.toggleBooksEnabled(enabled)
                 },
                 onNavigateBack = {
                     navController.popBackStack()
