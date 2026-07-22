@@ -2,6 +2,9 @@ package app.uamo.ynotes.ui.components
 
 import android.graphics.Bitmap
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -52,7 +55,8 @@ fun NoteCard(
     onClick: (NoteEntity) -> Unit,
     onLongPress: ((NoteEntity) -> Unit)? = null,
     isSelected: Boolean = false,
-    isSelectionMode: Boolean = false
+    isSelectionMode: Boolean = false,
+    modifier: Modifier = Modifier
 ) {
     val cardColor = if (note.color == 0L) MaterialTheme.colorScheme.surfaceVariant else Color(note.color)
     val context = LocalContext.current
@@ -86,12 +90,28 @@ fun NoteCard(
         label = "borderWidth"
     )
 
-    val baseModifier = Modifier
+    var isPressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "scale"
+    )
+
+    val baseModifier = modifier
         .fillMaxWidth()
+        .scale(scale)
         .clip(RoundedCornerShape(28.dp))
         .border(borderWidth, borderColor, RoundedCornerShape(28.dp))
         .pointerInput(isSelectionMode) {
             detectTapGestures(
+                onPress = {
+                    isPressed = true
+                    tryAwaitRelease()
+                    isPressed = false
+                },
                 onTap = {
                     onClick(note)
                 },
