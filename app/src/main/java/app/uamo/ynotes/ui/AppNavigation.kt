@@ -246,6 +246,7 @@ fun AppNavigation(
                 isAppHidingEnabled = isAppHidingEnabled.value,
                 onBiometricToggle = { enabled ->
                     onBiometricToggle(enabled)
+                },
                 onAppHidingToggle = { mode ->
                     onAppHidingToggle(mode)
                 },
