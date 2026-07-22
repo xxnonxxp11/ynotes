@@ -12,6 +12,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.ui.draw.scale
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Description
@@ -76,14 +80,40 @@ fun HomeScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
+            var isFabPressed by remember { mutableStateOf(false) }
+            val fabScale by animateFloatAsState(
+                targetValue = if (isFabPressed) 0.95f else 1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                ),
+                label = "fabScale"
+            )
+
             Box(
                 modifier = Modifier
                     .padding(end = 8.dp, bottom = 8.dp)
+                    .scale(fabScale)
                     .background(
                         brush = app.uamo.ynotes.ui.theme.AuroraPrimary,
                         shape = RoundedCornerShape(20.dp)
                     )
-                    .clickable { onAddNote() }
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onPress = {
+                                isFabPressed = true
+                                tryAwaitRelease()
+                                isFabPressed = false
+                            },
+                            onTap = { onAddNote() },
+                            onLongPress = {
+                                if (safeZoneTriggerMode == 3) {
+                                    if (isBiometricEnabled) onRequestSafeZoneBiometric()
+                                    else onRequestSafeZone()
+                                }
+                            }
+                        )
+                    }
                     .padding(horizontal = 20.dp, vertical = 16.dp),
                 contentAlignment = Alignment.Center
             ) {

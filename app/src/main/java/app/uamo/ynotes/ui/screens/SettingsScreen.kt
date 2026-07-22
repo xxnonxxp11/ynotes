@@ -82,26 +82,41 @@ fun SettingsScreen(
                             RadioButton(selected = inputMode == 2, onClick = { inputMode = 2 })
                             Text("Mantener presionado Ajustes (+ Huella)", style = MaterialTheme.typography.bodyMedium)
                         }
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { inputMode = 3 }) {
+                            RadioButton(selected = inputMode == 3, onClick = { inputMode = 3 })
+                            Text("Mantener presionado Añadir Nota (+ Huella)", style = MaterialTheme.typography.bodyMedium)
+                        }
                     }
                     
                     Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = inputPassword,
-                        onValueChange = { inputPassword = it },
-                        label = { Text("Contraseña (Requerida)") },
-                        singleLine = true,
-                        leadingIcon = { Icon(Icons.Default.VpnKey, contentDescription = null) },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    if (inputMode == 0) {
+                        OutlinedTextField(
+                            value = inputPassword,
+                            onValueChange = { inputPassword = it },
+                            label = { Text("Contraseña (Requerida)") },
+                            singleLine = true,
+                            leadingIcon = { Icon(Icons.Default.VpnKey, contentDescription = null) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                     if (currentPassword.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("Nota: Guarda con el campo vacío para eliminar la Zona Segura.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                        Text(
+                            text = if (inputMode == 0) "Nota: Guarda con el campo vacío para eliminar la Zona Segura." else "Nota: Selecciona 'Escribir contraseña' y guarda vacío para eliminar la Zona Segura.", 
+                            style = MaterialTheme.typography.bodySmall, 
+                            color = MaterialTheme.colorScheme.error
+                        )
                     }
                 }
             },
             confirmButton = {
                 TextButton(onClick = {
-                    onSaveSafeZone(inputPassword.trim(), inputMode)
+                    val finalPassword = if (inputMode != 0 && inputPassword.isBlank()) {
+                        if (currentPassword.isNotEmpty()) currentPassword else "biometric_safe_zone"
+                    } else {
+                        inputPassword.trim()
+                    }
+                    onSaveSafeZone(finalPassword, inputMode)
                     showDialog = false
                 }) {
                     Text("Guardar")
