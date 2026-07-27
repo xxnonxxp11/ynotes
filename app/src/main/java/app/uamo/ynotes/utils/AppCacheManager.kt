@@ -3,38 +3,51 @@ package app.uamo.ynotes.utils
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.util.Base64
+import android.util.LruCache
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileOutputStream
 
 /**
  * Manages a disk cache of hidden app info (name, package, icon) so the
  * SafeZone shortcut row can render instantly without scanning all installed apps.
+ * Icons are stored as individual .png files in filesDir/app_icons to avoid Base64 bloating.
  */
 object AppCacheManager {
 
     private const val CACHE_FILE = "hidden_apps_cache.json"
+    private const val ICONS_DIR = "app_icons"
     private val gson = Gson()
+    private val iconRamCache = LruCache<String, ImageBitmap>(32)
 
-    /** Lightweight serializable DTO — icon stored as Base64 PNG */
+    /** Lightweight serializable DTO — only package name and app name */
     private data class CachedApp(
         val packageName: String,
-        val name: String,
-        val iconBase64: String
+        val name: String
     )
 
     /** Save the current list of hidden apps to disk cache */
     fun saveHiddenApps(context: Context, apps: List<AppInfo>) {
+        val iconsDir = getIconsDir(context)
+        if (!iconsDir.exists()) iconsDir.mkdirs()
+
         val cached = apps.map { app ->
+            val iconFile = File(iconsDir, "${app.packageName}.png")
+            try {
+                FileOutputStream(iconFile).use { fos ->
+                    app.icon.asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 90, fos)
+                }
+                iconRamCache.put(app.packageName, app.icon)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
             CachedApp(
                 packageName = app.packageName,
-                name = app.name,
-                iconBase64 = imageBitmapToBase64(app.icon)
+                name = app.name
             )
         }
         val json = gson.toJson(cached)
@@ -47,14 +60,23 @@ object AppCacheManager {
         if (!file.exists()) return emptyList()
 
         return try {
+            val iconsDir = getIconsDir(context)
             val json = file.readText()
             val type = object : TypeToken<List<CachedApp>>() {}.type
-            val cached: List<CachedApp> = gson.fromJson(json, type)
-            cached.map { c ->
+            val cached: List<CachedApp> = gson.fromJson(json, type) ?: return emptyList()
+            cached.mapNotNull { c ->
+                var icon = iconRamCache.get(c.packageName)
+                if (icon == null) {
+                    val iconFile = File(iconsDir, "${c.packageName}.png")
+                    if (!iconFile.exists()) return@mapNotNull null
+                    val bitmap = BitmapFactory.decodeFile(iconFile.absolutePath) ?: return@mapNotNull null
+                    icon = bitmap.asImageBitmap()
+                    iconRamCache.put(c.packageName, icon)
+                }
                 AppInfo(
                     packageName = c.packageName,
                     name = c.name,
-                    icon = base64ToImageBitmap(c.iconBase64)
+                    icon = icon
                 )
             }
         } catch (e: Exception) {
@@ -62,27 +84,20 @@ object AppCacheManager {
         }
     }
 
-    /** Clear the cache file */
+    /** Clear the cache file and deleted icon files */
     fun clearCache(context: Context) {
         val file = getCacheFile(context)
         if (file.exists()) file.delete()
+        val iconsDir = getIconsDir(context)
+        if (iconsDir.exists()) iconsDir.deleteRecursively()
+        iconRamCache.evictAll()
     }
 
     private fun getCacheFile(context: Context): File {
         return File(context.filesDir, CACHE_FILE)
     }
 
-    private fun imageBitmapToBase64(imageBitmap: ImageBitmap): String {
-        val bitmap = imageBitmap.asAndroidBitmap()
-        val stream = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.PNG, 90, stream)
-        val bytes = stream.toByteArray()
-        return Base64.encodeToString(bytes, Base64.NO_WRAP)
-    }
-
-    private fun base64ToImageBitmap(base64: String): ImageBitmap {
-        val bytes = Base64.decode(base64, Base64.NO_WRAP)
-        val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-        return bitmap.asImageBitmap()
+    private fun getIconsDir(context: Context): File {
+        return File(context.filesDir, ICONS_DIR)
     }
 }
