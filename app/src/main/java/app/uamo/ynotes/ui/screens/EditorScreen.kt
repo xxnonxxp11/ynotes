@@ -3,6 +3,7 @@ package app.uamo.ynotes.ui.screens
 import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -117,9 +118,9 @@ fun EditorScreen(
         }
     }
 
-    // Image picker launcher
+    // Image picker launcher (Modern Android Photo Picker - no permissions needed)
     val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 10)
     ) { uris ->
         if (uris.isNotEmpty()) {
             coroutineScope.launch {
@@ -240,7 +241,9 @@ fun EditorScreen(
                     IconButton(onClick = { showColorPicker = !showColorPicker }) {
                         Icon(Icons.Default.Palette, contentDescription = "Color", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    IconButton(onClick = { imagePickerLauncher.launch("image/*") }) {
+                    IconButton(onClick = { 
+                        imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) 
+                    }) {
                         Icon(
                             Icons.Default.AttachFile,
                             contentDescription = "Adjuntar imagen",

@@ -169,14 +169,32 @@ object MediaManager {
 
     private fun decodeSampledBitmapFromUri(context: Context, uri: Uri, maxSize: Int): Bitmap? {
         return try {
-            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                BitmapFactory.decodeStream(input, null, options)
-            }
-            options.inSampleSize = calculateInSampleSize(options, maxSize, maxSize)
-            options.inJustDecodeBounds = false
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                BitmapFactory.decodeStream(input, null, options)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                val source = android.graphics.ImageDecoder.createSource(context.contentResolver, uri)
+                android.graphics.ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                    val width = info.size.width
+                    val height = info.size.height
+                    var sampleSize = 1
+                    if (height > maxSize || width > maxSize) {
+                        val halfHeight = height / 2
+                        val halfWidth = width / 2
+                        while (halfHeight / sampleSize >= maxSize && halfWidth / sampleSize >= maxSize) {
+                            sampleSize *= 2
+                        }
+                    }
+                    decoder.setTargetSampleSize(sampleSize)
+                    decoder.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
+                }
+            } else {
+                val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    BitmapFactory.decodeStream(input, null, options)
+                }
+                options.inSampleSize = calculateInSampleSize(options, maxSize, maxSize)
+                options.inJustDecodeBounds = false
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    BitmapFactory.decodeStream(input, null, options)
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
