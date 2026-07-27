@@ -20,26 +20,39 @@ fun parseMarkdown(text: String, baseColor: Color = MaterialTheme.colorScheme.onB
 }
 
 class MarkdownVisualTransformation(private val baseColor: Color) : VisualTransformation {
+    private var lastText: String? = null
+    private var lastResult: TransformedText? = null
+
     override fun filter(text: AnnotatedString): TransformedText {
+        val currentText = text.text
+        if (currentText == lastText && lastResult != null) {
+            return lastResult!!
+        }
         // We use our parse function directly to format the typing text
         // Because we don't change the length of the string, OffsetMapping.Identity works perfectly!
-        val formattedText = parseMarkdownSync(text.text, baseColor)
-        return TransformedText(formattedText, OffsetMapping.Identity)
+        val formattedText = parseMarkdownSync(currentText, baseColor)
+        val result = TransformedText(formattedText, OffsetMapping.Identity)
+        lastText = currentText
+        lastResult = result
+        return result
     }
 }
 
 private val boldRegex = Regex("\\*\\*(.*?)\\*\\*")
 private val italicRegex = Regex("(?<!\\*)\\*(?!\\*)(.*?)(?<!\\*)\\*(?!\\*)|_(.*?)_")
 private val strikeRegex = Regex("~~(.*?)~~")
-private val header1Regex = Regex("(?m)^# (.*)$")
-private val header2Regex = Regex("(?m)^## (.*)$")
-private val header3Regex = Regex("(?m)^### (.*)$")
+private val headerRegex = Regex("(?m)^(#{1,3}) (.*)$")
 private val codeRegex = Regex("`(.*?)`")
 private val quoteRegex = Regex("(?m)^> (.*)$")
 
+private val parseCache = android.util.LruCache<String, AnnotatedString>(64)
+
 // A synchronous version of parseMarkdown for the VisualTransformation that doesn't need @Composable
 fun parseMarkdownSync(text: String, baseColor: Color): AnnotatedString {
-    return buildAnnotatedString {
+    val cacheKey = "${text.hashCode()}_${baseColor.value}"
+    parseCache.get(cacheKey)?.let { return it }
+
+    val result = buildAnnotatedString {
         append(text)
         
         // Bold: **text**
@@ -63,20 +76,16 @@ fun parseMarkdownSync(text: String, baseColor: Color): AnnotatedString {
             addStyle(SpanStyle(color = baseColor.copy(alpha = 0.3f)), match.range.last - 1, match.range.last + 1)
         }
         
-        // Headers: # Header
-        header1Regex.findAll(text).forEach { match ->
-            addStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = 24.sp), match.range.first, match.range.last + 1)
-            addStyle(SpanStyle(color = baseColor.copy(alpha = 0.3f)), match.range.first, match.range.first + 2)
-        }
-        
-        header2Regex.findAll(text).forEach { match ->
-            addStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = 20.sp), match.range.first, match.range.last + 1)
-            addStyle(SpanStyle(color = baseColor.copy(alpha = 0.3f)), match.range.first, match.range.first + 3)
-        }
-
-        header3Regex.findAll(text).forEach { match ->
-            addStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = 18.sp), match.range.first, match.range.last + 1)
-            addStyle(SpanStyle(color = baseColor.copy(alpha = 0.3f)), match.range.first, match.range.first + 4)
+        // Headers: # Header (1, 2, or 3)
+        headerRegex.findAll(text).forEach { match ->
+            val level = match.groupValues[1].length
+            val (fontSize, prefixLen) = when (level) {
+                1 -> 24.sp to 2
+                2 -> 20.sp to 3
+                else -> 18.sp to 4
+            }
+            addStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = fontSize), match.range.first, match.range.last + 1)
+            addStyle(SpanStyle(color = baseColor.copy(alpha = 0.3f)), match.range.first, match.range.first + prefixLen)
         }
         
         // Code inline: `code`
@@ -91,4 +100,7 @@ fun parseMarkdownSync(text: String, baseColor: Color): AnnotatedString {
             addStyle(SpanStyle(color = quoteColor, fontStyle = FontStyle.Italic), match.range.first, match.range.last + 1)
         }
     }
+
+    parseCache.put(cacheKey, result)
+    return result
 }

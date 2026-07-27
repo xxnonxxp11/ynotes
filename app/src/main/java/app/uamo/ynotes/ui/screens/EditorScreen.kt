@@ -432,6 +432,10 @@ fun EditorScreen(
                             )
                         )
                     }
+                    val onBackgroundColor = MaterialTheme.colorScheme.onBackground
+                    val visualTransformation = remember(onBackgroundColor) {
+                        app.uamo.ynotes.utils.MarkdownVisualTransformation(onBackgroundColor)
+                    }
                     BasicTextField(
                         value = bodyText,
                         onValueChange = {
@@ -440,11 +444,11 @@ fun EditorScreen(
                         },
                         textStyle = TextStyle(
                             fontSize = 16.sp,
-                            color = MaterialTheme.colorScheme.onBackground
+                            color = onBackgroundColor
                         ),
                         modifier = Modifier.fillMaxSize(),
                         cursorBrush = SolidColor(cursorColor),
-                        visualTransformation = app.uamo.ynotes.utils.MarkdownVisualTransformation(MaterialTheme.colorScheme.onBackground)
+                        visualTransformation = visualTransformation
                     )
                 }
             }
