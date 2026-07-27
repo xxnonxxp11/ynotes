@@ -1,0 +1,19 @@
+Categories:
+  - Productivity
+  - Security
+License: MIT
+SourceCode: https://github.com/xxnonxxp11/ynotes
+IssueTracker: https://github.com/xxnonxxp11/ynotes/issues
+
+RepoType: git
+Repo: https://github.com/xxnonxxp11/ynotes.git
+
+Builds:
+  - versionName: '1.0.0'
+    versionCode: 1
+    commit: 'v1.0.0'
+    gradle:
+      - yes
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags

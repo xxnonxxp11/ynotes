@@ -32,6 +32,26 @@ class MainActivity : FragmentActivity() {
 
             YNotesTheme(themeType = currentTheme) {
                 val notesViewModel: NotesViewModel = viewModel()
+                
+                androidx.compose.runtime.DisposableEffect(notesViewModel) {
+                    val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                        when (event) {
+                            androidx.lifecycle.Lifecycle.Event.ON_STOP -> {
+                                notesViewModel.scheduleAutoLock(3000L)
+                            }
+                            androidx.lifecycle.Lifecycle.Event.ON_START -> {
+                                notesViewModel.cancelAutoLock()
+                            }
+                            else -> {}
+                        }
+                    }
+                    val processLifecycle = androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle
+                    processLifecycle.addObserver(observer)
+                    onDispose {
+                        processLifecycle.removeObserver(observer)
+                    }
+                }
+
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background

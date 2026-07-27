@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import app.uamo.ynotes.utils.CryptoManager
 import java.util.UUID
 
@@ -139,6 +141,31 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     fun lockSafeZone() {
         _isSafeZoneUnlocked.value = false
         _decryptedSecretNotes.value = emptyList()  // Wipe from memory
+        cancelAutoLock()
+    }
+
+    private var autoLockJob: Job? = null
+
+    /**
+     * Starts a timer when the app goes into the background.
+     * If the user doesn't return within [delayMillis] (default 3000ms = 3 seconds),
+     * the Safe Zone will be automatically locked and decrypted notes purged from memory.
+     */
+    fun scheduleAutoLock(delayMillis: Long = 3000L) {
+        if (!_isSafeZoneUnlocked.value) return
+        autoLockJob?.cancel()
+        autoLockJob = viewModelScope.launch {
+            delay(delayMillis)
+            lockSafeZone()
+        }
+    }
+
+    /**
+     * Cancels the pending auto-lock timer when the app returns to the foreground.
+     */
+    fun cancelAutoLock() {
+        autoLockJob?.cancel()
+        autoLockJob = null
     }
 
     // ──────────────────────────────────────────────

@@ -21,11 +21,13 @@ object CryptoManager {
         load(null)
     }
 
+    @Synchronized
     private fun getSecretKey(): SecretKey {
         val existingKey = keyStore.getEntry(KEY_ALIAS, null) as? KeyStore.SecretKeyEntry
         return existingKey?.secretKey ?: createSecretKey()
     }
 
+    @Synchronized
     private fun createSecretKey(): SecretKey {
         val keyGenerator = KeyGenerator.getInstance(ALGORITHM, "AndroidKeyStore")
         keyGenerator.init(

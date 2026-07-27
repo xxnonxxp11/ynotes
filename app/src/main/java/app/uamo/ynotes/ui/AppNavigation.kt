@@ -104,6 +104,28 @@ fun AppNavigation(
         }
     }
 
+    val isSafeZoneUnlocked by viewModel.isSafeZoneUnlocked.collectAsState()
+
+    LaunchedEffect(isSafeZoneUnlocked) {
+        if (!isSafeZoneUnlocked) {
+            val currentRoute = navController.currentDestination?.route ?: ""
+            val isSecretBookNote = if (currentRoute.startsWith("book_notes")) {
+                val bookId = navController.currentBackStackEntry?.arguments?.getString("bookId")
+                viewModel.books.value.find { it.id == bookId }?.isSecret == true
+            } else false
+
+            if (currentRoute == "safe_zone" || 
+                currentRoute.startsWith("editor/secret") || 
+                currentRoute == "settings/safe_zone" || 
+                currentRoute == "books/secret" || 
+                isSecretBookNote) {
+                navController.navigate("home") {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
+        }
+    }
+
     NavHost(navController = navController, startDestination = startDestination) {
         
         composable("welcome") {
