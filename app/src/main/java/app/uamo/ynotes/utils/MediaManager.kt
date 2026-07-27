@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.util.LruCache
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -13,6 +14,22 @@ object MediaManager {
 
     private const val MEDIA_DIR = "media"
     private const val MEDIA_ENCRYPTED_DIR = "media_encrypted"
+
+    private val maxMemory = (Runtime.getRuntime().maxMemory() / 1024).toInt()
+    private val cacheSize = maxMemory / 8 // 1/8th of available JVM RAM in KB
+
+    private val bitmapCache = object : LruCache<String, Bitmap>(cacheSize) {
+        override fun sizeOf(key: String, bitmap: Bitmap): Int {
+            return bitmap.byteCount / 1024
+        }
+    }
+
+    /**
+     * Clear all cached thumbnails from memory (e.g. when locking Safe Zone).
+     */
+    fun clearCache() {
+        bitmapCache.evictAll()
+    }
 
     private fun getMediaDir(context: Context, noteId: String, isSecret: Boolean): File {
         val baseName = if (isSecret) MEDIA_ENCRYPTED_DIR else MEDIA_DIR
@@ -74,13 +91,16 @@ object MediaManager {
         isSecret: Boolean,
         maxSize: Int = 512
     ): Bitmap? {
-        return try {
+        val cacheKey = "${noteId}_${fileName}_$maxSize"
+        bitmapCache.get(cacheKey)?.let { return it }
+
+        val bitmap = try {
             if (isSecret) {
                 val encFile = File(getMediaDir(context, noteId, true), fileName.replace(".jpg", ".enc"))
                 if (!encFile.exists()) return null
                 
                 val tempFile = File(context.cacheDir, "temp_decrypted_${UUID.randomUUID()}.jpg")
-                return try {
+                try {
                     FileOutputStream(tempFile).use { output ->
                         FileInputStream(encFile).use { input ->
                             CryptoManager.decryptFile(input, output)
@@ -101,6 +121,11 @@ object MediaManager {
             e.printStackTrace()
             null
         }
+
+        if (bitmap != null) {
+            bitmapCache.put(cacheKey, bitmap)
+        }
+        return bitmap
     }
 
     /**
@@ -110,6 +135,7 @@ object MediaManager {
         try {
             val dir = File(context.filesDir, "${if (isSecret) MEDIA_ENCRYPTED_DIR else MEDIA_DIR}/$noteId")
             if (dir.exists()) dir.deleteRecursively()
+            bitmapCache.evictAll()
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -127,6 +153,7 @@ object MediaManager {
                 File(dir, fileName)
             }
             if (file.exists()) file.delete()
+            bitmapCache.evictAll()
         } catch (e: Exception) {
             e.printStackTrace()
         }

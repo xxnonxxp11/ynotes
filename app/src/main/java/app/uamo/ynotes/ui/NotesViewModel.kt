@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import app.uamo.ynotes.utils.CryptoManager
+import app.uamo.ynotes.utils.MediaManager
 import java.util.UUID
 
 class NotesViewModel(application: Application) : AndroidViewModel(application) {
@@ -141,6 +142,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     fun lockSafeZone() {
         _isSafeZoneUnlocked.value = false
         _decryptedSecretNotes.value = emptyList()  // Wipe from memory
+        MediaManager.clearCache()                  // Wipe cached thumbnails from memory
         cancelAutoLock()
     }
 
