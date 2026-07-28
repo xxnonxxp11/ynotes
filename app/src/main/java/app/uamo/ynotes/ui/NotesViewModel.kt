@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import app.uamo.ynotes.utils.CryptoManager
 import app.uamo.ynotes.utils.MediaManager
 import java.util.UUID
@@ -85,7 +86,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     val deletedNotes: StateFlow<List<NoteEntity>> = noteDao.getDeletedNotes()
         .combine(_isSafeZoneUnlocked) { notes, unlocked ->
             if (unlocked) {
-                val (secretNotes, publicNotes) = notes.partition { it.isSecret }
+                val (secretNotes, _) = notes.partition { it.isSecret }
                 val decryptedSecret = withContext(Dispatchers.Default) {
                     CryptoManager.decryptBatch(secretNotes)
                 }.associateBy { it.id }
