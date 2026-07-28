@@ -80,7 +80,9 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         .combine(_isSafeZoneUnlocked) { notes, unlocked ->
             if (unlocked) {
                 val (secretNotes, publicNotes) = notes.partition { it.isSecret }
-                val decryptedSecret = CryptoManager.decryptBatch(secretNotes).associateBy { it.id }
+                val decryptedSecret = withContext(Dispatchers.Default) {
+                    CryptoManager.decryptBatch(secretNotes)
+                }.associateBy { it.id }
                 notes.map { note -> decryptedSecret[note.id] ?: note }
             } else {
                 notes.map { note ->
@@ -128,7 +130,9 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         syncJob = viewModelScope.launch {
             _rawSecretNotes.collect { rawNotes ->
                 if (_isSafeZoneUnlocked.value) {
-                    val decrypted = CryptoManager.decryptBatch(rawNotes)
+                    val decrypted = withContext(Dispatchers.Default) {
+                        CryptoManager.decryptBatch(rawNotes)
+                    }
                     _decryptedSecretNotes.value = decrypted
                 }
             }
