@@ -94,7 +94,7 @@ object MediaManager {
             bitmap.recycle()
 
             fileName
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             e.printStackTrace()
             null
         }
@@ -138,7 +138,7 @@ object MediaManager {
                 if (!file.exists()) return null
                 decodeSampledBitmapFromFile(file.absolutePath, maxSize)
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             e.printStackTrace()
             null
         }
@@ -151,12 +151,15 @@ object MediaManager {
 
     /**
      * Delete all media files for a note.
+     * Evicts only the cache entries that belong to the deleted note.
      */
     fun deleteNoteMedia(context: Context, noteId: String, isSecret: Boolean) {
         try {
             val dir = File(context.filesDir, "${if (isSecret) MEDIA_ENCRYPTED_DIR else MEDIA_DIR}/$noteId")
+            // Evict all cached bitmaps for this specific note before deleting files
+            val keysToEvict = bitmapCache.snapshot().keys.filter { it.startsWith("${noteId}_") }
+            keysToEvict.forEach { bitmapCache.remove(it) }
             if (dir.exists()) dir.deleteRecursively()
-            bitmapCache.evictAll()
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -164,6 +167,8 @@ object MediaManager {
 
     /**
      * Delete a single media file.
+     * Evicts only the specific cache entries for the deleted file, leaving
+     * all other note thumbnails intact in memory.
      */
     fun deleteMediaFile(context: Context, noteId: String, fileName: String, isSecret: Boolean) {
         try {
@@ -174,7 +179,10 @@ object MediaManager {
                 File(dir, fileName)
             }
             if (file.exists()) file.delete()
-            bitmapCache.evictAll()
+            // Remove only the cache entries for this specific file across all maxSize variants
+            val prefix = "${noteId}_${fileName}_"
+            val keysToEvict = bitmapCache.snapshot().keys.filter { it.startsWith(prefix) }
+            keysToEvict.forEach { bitmapCache.remove(it) }
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -195,23 +203,29 @@ object MediaManager {
 
     private fun decodeSampledBitmapFromUri(context: Context, uri: Uri, maxSize: Int): Bitmap? {
         return try {
+            var bmp: Bitmap? = null
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                val source = android.graphics.ImageDecoder.createSource(context.contentResolver, uri)
-                android.graphics.ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
-                    val width = info.size.width
-                    val height = info.size.height
-                    var sampleSize = 1
-                    if (height > maxSize || width > maxSize) {
-                        val halfHeight = height / 2
-                        val halfWidth = width / 2
-                        while (halfHeight / sampleSize >= maxSize && halfWidth / sampleSize >= maxSize) {
-                            sampleSize *= 2
+                try {
+                    val source = android.graphics.ImageDecoder.createSource(context.contentResolver, uri)
+                    bmp = android.graphics.ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                        val width = info.size.width
+                        val height = info.size.height
+                        var sampleSize = 1
+                        if (height > maxSize || width > maxSize) {
+                            val halfHeight = height / 2
+                            val halfWidth = width / 2
+                            while (halfHeight / sampleSize >= maxSize && halfWidth / sampleSize >= maxSize) {
+                                sampleSize *= 2
+                            }
                         }
+                        decoder.setTargetSampleSize(sampleSize)
+                        decoder.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
                     }
-                    decoder.setTargetSampleSize(sampleSize)
-                    decoder.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
+                } catch (t: Throwable) {
+                    t.printStackTrace()
                 }
-            } else {
+            }
+            if (bmp == null) {
                 val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 context.contentResolver.openInputStream(uri)?.use { input ->
                     BitmapFactory.decodeStream(input, null, options)
@@ -219,11 +233,12 @@ object MediaManager {
                 options.inSampleSize = calculateInSampleSize(options, maxSize, maxSize)
                 options.inJustDecodeBounds = false
                 context.contentResolver.openInputStream(uri)?.use { input ->
-                    BitmapFactory.decodeStream(input, null, options)
+                    bmp = BitmapFactory.decodeStream(input, null, options)
                 }
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
+            bmp
+        } catch (t: Throwable) {
+            t.printStackTrace()
             null
         }
     }
