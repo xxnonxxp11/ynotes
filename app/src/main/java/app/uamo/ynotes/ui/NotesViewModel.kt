@@ -78,17 +78,17 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     // ──────────────────────────────────────────────
     val deletedNotes: StateFlow<List<NoteEntity>> = noteDao.getDeletedNotes()
         .combine(_isSafeZoneUnlocked) { notes, unlocked ->
-            notes.map { note ->
-                if (note.isSecret && unlocked) {
-                    note.copy(
-                        title = CryptoManager.decrypt(note.title),
-                        body = CryptoManager.decrypt(note.body)
-                    )
-                } else if (note.isSecret) {
-                    // Keep secret deleted notes hidden when locked
-                    note.copy(title = "🔒", body = "")
-                } else {
-                    note
+            if (unlocked) {
+                val (secretNotes, publicNotes) = notes.partition { it.isSecret }
+                val decryptedSecret = CryptoManager.decryptBatch(secretNotes).associateBy { it.id }
+                notes.map { note -> decryptedSecret[note.id] ?: note }
+            } else {
+                notes.map { note ->
+                    if (note.isSecret) {
+                        note.copy(title = "🔒", body = "")
+                    } else {
+                        note
+                    }
                 }
             }
         }
@@ -238,12 +238,20 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteNotePermanently(id: String) {
         viewModelScope.launch {
+            val note = deletedNotes.value.find { it.id == id }
+            if (note != null) {
+                MediaManager.deleteNoteMedia(getApplication(), note.id, note.isSecret)
+            }
             noteDao.deleteNote(id)
         }
     }
     
     fun emptyTrash() {
         viewModelScope.launch {
+            val trashNotes = deletedNotes.value
+            trashNotes.forEach { note ->
+                MediaManager.deleteNoteMedia(getApplication(), note.id, note.isSecret)
+            }
             noteDao.emptyTrash()
         }
     }
@@ -266,6 +274,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteBook(id: String) {
         viewModelScope.launch {
+            noteDao.removeBookFromNotes(id)
             noteDao.deleteBook(id)
         }
     }

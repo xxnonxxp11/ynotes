@@ -49,4 +49,7 @@ interface NoteDao {
 
     @Query("DELETE FROM books WHERE id = :id")
     suspend fun deleteBook(id: String)
+
+    @Query("UPDATE notes SET bookId = NULL WHERE bookId = :bookId")
+    suspend fun removeBookFromNotes(bookId: String)
 }

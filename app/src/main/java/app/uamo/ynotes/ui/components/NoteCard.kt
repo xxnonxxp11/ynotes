@@ -75,6 +75,8 @@ fun NoteCard(
             firstBitmap = withContext(Dispatchers.IO) {
                 MediaManager.loadMediaBitmap(context, note.id, mediaFileNames.first(), note.isSecret, maxSize = 256)
             }
+        } else {
+            firstBitmap = null
         }
     }
 

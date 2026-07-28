@@ -22,6 +22,7 @@ import app.uamo.ynotes.ui.components.NoteCard
 fun TrashScreen(
     deletedNotes: List<NoteEntity>,
     onRestore: (String) -> Unit,
+    onDeletePermanently: (String) -> Unit,
     onEmptyTrash: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
@@ -101,8 +102,8 @@ fun TrashScreen(
         selectedNote?.let { note ->
             AlertDialog(
                 onDismissRequest = { selectedNote = null },
-                title = { Text("Restaurar nota") },
-                text = { Text("¿Quieres restaurar esta nota?") },
+                title = { Text("Opciones de nota") },
+                text = { Text("¿Qué deseas hacer con esta nota eliminada?") },
                 confirmButton = {
                     TextButton(onClick = {
                         onRestore(note.id)
@@ -112,8 +113,16 @@ fun TrashScreen(
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { selectedNote = null }) {
-                        Text("Cancelar")
+                    Row {
+                        TextButton(onClick = {
+                            onDeletePermanently(note.id)
+                            selectedNote = null
+                        }) {
+                            Text("Eliminar", color = MaterialTheme.colorScheme.error)
+                        }
+                        TextButton(onClick = { selectedNote = null }) {
+                            Text("Cancelar")
+                        }
                     }
                 }
             )
