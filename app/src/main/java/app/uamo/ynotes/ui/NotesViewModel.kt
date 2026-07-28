@@ -26,6 +26,12 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     private val noteDao = NoteDatabase.getDatabase(application).noteDao()
     private val sharedPrefs = application.getSharedPreferences("yNotesPrefs", android.content.Context.MODE_PRIVATE)
 
+    init {
+        viewModelScope.launch(Dispatchers.IO) {
+            MediaManager.cleanOrphanedTempFiles(application)
+        }
+    }
+
     private val _isBooksEnabled = MutableStateFlow(sharedPrefs.getBoolean("isBooksEnabled", false))
     val isBooksEnabled: StateFlow<Boolean> = _isBooksEnabled.asStateFlow()
 
@@ -147,6 +153,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         _isSafeZoneUnlocked.value = false
         _decryptedSecretNotes.value = emptyList()  // Wipe from memory
         MediaManager.clearCache()                  // Wipe cached thumbnails from memory
+        MediaManager.cleanOrphanedTempFiles(getApplication()) // Wipe residual temp files from disk
         cancelAutoLock()
     }
 

@@ -31,6 +31,21 @@ object MediaManager {
         bitmapCache.evictAll()
     }
 
+    /**
+     * Clean any orphaned temporary files in cacheDir left over from unexpected OS process termination.
+     */
+    fun cleanOrphanedTempFiles(context: Context) {
+        try {
+            context.cacheDir.listFiles { file ->
+                file.name.startsWith("temp_compress_") || file.name.startsWith("temp_decrypted_")
+            }?.forEach { file ->
+                file.delete()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     private fun getMediaDir(context: Context, noteId: String, isSecret: Boolean): File {
         val baseName = if (isSecret) MEDIA_ENCRYPTED_DIR else MEDIA_DIR
         val dir = File(context.filesDir, "$baseName/$noteId")
