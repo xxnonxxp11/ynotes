@@ -38,7 +38,10 @@ fun getInstalledApps(context: Context): List<AppInfo> {
 
 private fun drawableToImageBitmap(drawable: Drawable): ImageBitmap {
     if (drawable is BitmapDrawable && drawable.bitmap != null) {
-        return drawable.bitmap.asImageBitmap()
+        val bmp = drawable.bitmap
+        if (bmp.config != Bitmap.Config.HARDWARE) {
+            return bmp.asImageBitmap()
+        }
     }
     
     val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else 100

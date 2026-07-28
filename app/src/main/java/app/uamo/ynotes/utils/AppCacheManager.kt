@@ -38,8 +38,14 @@ object AppCacheManager {
         val cached = apps.map { app ->
             val iconFile = File(iconsDir, "${app.packageName}.png")
             try {
+                val bmp = app.icon.asAndroidBitmap()
+                val safeBmp = if (bmp.config == Bitmap.Config.HARDWARE) {
+                    bmp.copy(Bitmap.Config.ARGB_8888, false) ?: bmp
+                } else {
+                    bmp
+                }
                 FileOutputStream(iconFile).use { fos ->
-                    app.icon.asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 90, fos)
+                    safeBmp.compress(Bitmap.CompressFormat.PNG, 90, fos)
                 }
                 iconRamCache.put(app.packageName, app.icon)
             } catch (e: Exception) {
