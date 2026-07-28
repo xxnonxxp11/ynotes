@@ -49,7 +49,12 @@ object MediaManager {
             val dir = getMediaDir(context, noteId, isSecret)
             val targetFile = File(dir, if (isSecret) fileName.replace(".jpg", ".enc") else fileName)
 
-            val bitmap = decodeSampledBitmapFromUri(context, uri, 1920) ?: return null
+            val rawBitmap = decodeSampledBitmapFromUri(context, uri, 1920) ?: return null
+            val bitmap = if (rawBitmap.config == Bitmap.Config.HARDWARE) {
+                rawBitmap.copy(Bitmap.Config.ARGB_8888, false) ?: rawBitmap
+            } else {
+                rawBitmap
+            }
 
             if (isSecret) {
                 val tempFile = File(context.cacheDir, "temp_compress_${UUID.randomUUID()}.jpg")
@@ -70,6 +75,7 @@ object MediaManager {
                     bitmap.compress(Bitmap.CompressFormat.JPEG, 85, output)
                 }
             }
+            if (rawBitmap != bitmap) rawBitmap.recycle()
             bitmap.recycle()
 
             fileName
@@ -164,7 +170,12 @@ object MediaManager {
         BitmapFactory.decodeFile(path, options)
         options.inSampleSize = calculateInSampleSize(options, maxSize, maxSize)
         options.inJustDecodeBounds = false
-        return BitmapFactory.decodeFile(path, options)
+        val bmp = BitmapFactory.decodeFile(path, options) ?: return null
+        return if (bmp.config == Bitmap.Config.HARDWARE) {
+            bmp.copy(Bitmap.Config.ARGB_8888, false) ?: bmp
+        } else {
+            bmp
+        }
     }
 
     private fun decodeSampledBitmapFromUri(context: Context, uri: Uri, maxSize: Int): Bitmap? {
