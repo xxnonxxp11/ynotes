@@ -18,12 +18,18 @@ android {
 
     signingConfigs {
         create("release") {
-            val keystorePath = System.getenv("KEYSTORE_PATH")
+            val keystoreBase64 = System.getenv("KEYSTORE_BASE64")
             val keystorePassword = System.getenv("KEYSTORE_PASSWORD")
             val keyAlias = System.getenv("KEY_ALIAS")
             val keyPassword = System.getenv("KEY_PASSWORD")
-            if (keystorePath != null) {
-                storeFile = file(keystorePath)
+            
+            if (!keystoreBase64.isNullOrEmpty()) {
+                val keystoreFile = file("keystore.jks")
+                // Eliminar posibles saltos de línea/espacios antes de decodificar
+                val cleanBase64 = keystoreBase64.replace("\\s".toRegex(), "")
+                keystoreFile.writeBytes(java.util.Base64.getDecoder().decode(cleanBase64))
+                
+                storeFile = keystoreFile
                 storePassword = keystorePassword
                 this.keyAlias = keyAlias
                 this.keyPassword = keyPassword
@@ -38,8 +44,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            val keystorePath = System.getenv("KEYSTORE_PATH")
-            if (keystorePath != null) {
+            val keystoreBase64 = System.getenv("KEYSTORE_BASE64")
+            if (!keystoreBase64.isNullOrEmpty()) {
                 signingConfig = signingConfigs.getByName("release")
             }
         }
