@@ -50,5 +50,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: yNotes-release-${{ github.sha }}
-          path: app/build/outputs/apk/release/app-release.apk
+          path: app/build/outputs/apk/release/*.apk
           retention-days: 30
