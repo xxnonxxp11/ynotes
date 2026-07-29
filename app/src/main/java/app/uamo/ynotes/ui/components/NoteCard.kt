@@ -45,6 +45,7 @@ import app.uamo.ynotes.utils.MediaManager
 import app.uamo.ynotes.utils.parseMarkdown
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import app.uamo.ynotes.utils.sharedElementTransition
 
 import app.uamo.ynotes.ui.theme.AuroraPrimary
 import app.uamo.ynotes.ui.theme.GlassBorder
@@ -108,6 +109,7 @@ fun NoteCard(
 
     val baseModifier = modifier
         .fillMaxWidth()
+        .sharedElementTransition("note-${note.id}")
         .scale(scale)
         .clip(RoundedCornerShape(if (currentTheme == AppThemeType.GOOGLE) 16.dp else 28.dp))
         .border(borderWidth, borderColor, RoundedCornerShape(if (currentTheme == AppThemeType.GOOGLE) 16.dp else 28.dp))

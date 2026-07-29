@@ -1,6 +1,8 @@
 package app.uamo.ynotes.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.activity.compose.BackHandler
 import androidx.biometric.BiometricManager
 import androidx.compose.foundation.clickable
@@ -167,6 +169,7 @@ fun SettingsScreen(
                 modifier = Modifier
                     .padding(innerPadding)
                     .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
             ) {
                 Spacer(modifier = Modifier.height(60.dp))
                 
@@ -455,6 +458,7 @@ fun SettingsScreen(
                     )
                 }
             }
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
     

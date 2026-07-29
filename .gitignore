@@ -1,4 +1,4 @@
-﻿
+
 jdk-17.0.19+10/
 jdk.zip
 gradle-8.7/
@@ -11,3 +11,8 @@ local.properties
 app/build/
 .gradle/
 local.properties
+
+# Signing — never commit these
+*.jks
+*.keystore
+keystore_base64.txt

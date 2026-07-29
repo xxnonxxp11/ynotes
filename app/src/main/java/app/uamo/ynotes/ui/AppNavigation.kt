@@ -9,6 +9,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import app.uamo.ynotes.ui.screens.*
+import app.uamo.ynotes.utils.SharedTransitionProvider
+import app.uamo.ynotes.utils.SharedTransitionContainer
+import app.uamo.ynotes.utils.sharedComposable
 
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
@@ -126,9 +129,10 @@ fun AppNavigation(
         }
     }
 
-    NavHost(navController = navController, startDestination = startDestination) {
-        
-        composable("welcome") {
+    SharedTransitionProvider {
+        NavHost(navController = navController, startDestination = startDestination) {
+            
+            sharedComposable("welcome") {
             WelcomeScreen(
                 onStart = {
                     onWelcomeCompleted()
@@ -139,7 +143,7 @@ fun AppNavigation(
             )
         }
 
-        composable("home") {
+        sharedComposable("home") {
             HomeScreen(
                 notes = publicNotes,
                 safeZonePassword = safeZonePassword.value,
@@ -166,7 +170,7 @@ fun AppNavigation(
             )
         }
 
-        composable("safe_zone") {
+        sharedComposable("safe_zone") {
             SafeZoneScreen(
                 notes = secretNotes,
                 isAppHidingEnabled = isAppHidingEnabled.value,
@@ -195,7 +199,7 @@ fun AppNavigation(
             )
         }
 
-        composable(
+        sharedComposable(
             route = "editor/{type}/{noteId}",
             arguments = listOf(
                 navArgument("type") { type = NavType.StringType },
@@ -245,7 +249,7 @@ fun AppNavigation(
             )
         }
 
-        composable(
+        sharedComposable(
             route = "settings/{from}",
             arguments = listOf(navArgument("from") { type = NavType.StringType })
         ) { backStackEntry ->
@@ -286,7 +290,7 @@ fun AppNavigation(
             )
         }
 
-        composable(
+        sharedComposable(
             route = "books/{zone}",
             arguments = listOf(navArgument("zone") { type = NavType.StringType })
         ) { backStackEntry ->
@@ -312,13 +316,13 @@ fun AppNavigation(
             )
         }
 
-        composable(
+        sharedComposable(
             route = "book_notes/{bookId}",
             arguments = listOf(navArgument("bookId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val bookId = backStackEntry.arguments?.getString("bookId") ?: return@composable
+            val bookId = backStackEntry.arguments?.getString("bookId") ?: return@sharedComposable
             val books by viewModel.books.collectAsState()
-            val book = books.find { it.id == bookId } ?: return@composable
+            val book = books.find { it.id == bookId } ?: return@sharedComposable
 
             val allNotes = if (book.isSecret) secretNotes else publicNotes
             val bookNotes = allNotes.filter { it.bookId == bookId }
@@ -338,7 +342,7 @@ fun AppNavigation(
             )
         }
 
-        composable("trash") {
+        sharedComposable("trash") {
             val deletedNotes by viewModel.deletedNotes.collectAsState()
             TrashScreen(
                 deletedNotes = deletedNotes,
@@ -356,5 +360,6 @@ fun AppNavigation(
                 }
             )
         }
+    }
     }
 }

@@ -43,6 +43,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
+import app.uamo.ynotes.utils.sharedElementTransition
 
 val NoteColors = listOf(
     0L, // Default (uses surfaceVariant)
@@ -122,30 +123,85 @@ fun EditorScreen(
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 10)
     ) { uris ->
-        if (uris.isNotEmpty()) {
-            coroutineScope.launch {
-                val newNames = mutableListOf<String>()
-                uris.forEach { uri ->
-                    withContext(Dispatchers.IO) {
-                        MediaManager.saveMedia(context, stableNoteId, uri, isSecret)
-                    }?.let { name ->
-                        newNames.add(name)
-                        // Load thumbnail immediately
+        try {
+            if (uris.isNotEmpty()) {
+                coroutineScope.launch {
+                    val newNames = mutableListOf<String>()
+                    uris.forEach { uri ->
                         withContext(Dispatchers.IO) {
-                            MediaManager.loadMediaBitmap(context, stableNoteId, name, isSecret)
-                        }?.let { bitmap ->
-                            mediaBitmaps[name] = bitmap
+                            try {
+                                MediaManager.saveMedia(context, stableNoteId, uri, isSecret)
+                            } catch (t: Throwable) {
+                                t.printStackTrace()
+                                null
+                            }
+                        }?.let { name ->
+                            newNames.add(name)
+                            withContext(Dispatchers.IO) {
+                                try {
+                                    MediaManager.loadMediaBitmap(context, stableNoteId, name, isSecret)
+                                } catch (t: Throwable) {
+                                    t.printStackTrace()
+                                    null
+                                }
+                            }?.let { bitmap ->
+                                mediaBitmaps[name] = bitmap
+                            }
+                        }
+                    }
+                    if (newNames.isNotEmpty()) {
+                        mediaFileNames = mediaFileNames + newNames
+                        if (!isDeleted && (titleText.trim().isNotBlank() || bodyText.trim().isNotBlank() || mediaFileNames.isNotEmpty())) {
+                            onSave(stableNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId, isBodyHidden, mediaFilesString())
                         }
                     }
                 }
-                if (newNames.isNotEmpty()) {
-                    mediaFileNames = mediaFileNames + newNames
-                    // Save immediately after adding media
-                    if (!isDeleted && (titleText.trim().isNotBlank() || bodyText.trim().isNotBlank() || mediaFileNames.isNotEmpty())) {
-                        onSave(stableNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId, isBodyHidden, mediaFilesString())
+            }
+        } catch (t: Throwable) {
+            t.printStackTrace()
+        }
+    }
+
+    // Fallback launcher for Android 11 / devices where PickMultipleVisualMedia fails or is unavailable
+    val fallbackImagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        try {
+            if (uris.isNotEmpty()) {
+                coroutineScope.launch {
+                    val newNames = mutableListOf<String>()
+                    uris.forEach { uri ->
+                        withContext(Dispatchers.IO) {
+                            try {
+                                MediaManager.saveMedia(context, stableNoteId, uri, isSecret)
+                            } catch (t: Throwable) {
+                                t.printStackTrace()
+                                null
+                            }
+                        }?.let { name ->
+                            newNames.add(name)
+                            withContext(Dispatchers.IO) {
+                                try {
+                                    MediaManager.loadMediaBitmap(context, stableNoteId, name, isSecret)
+                                } catch (t: Throwable) {
+                                    t.printStackTrace()
+                                    null
+                                }
+                            }?.let { bitmap ->
+                                mediaBitmaps[name] = bitmap
+                            }
+                        }
+                    }
+                    if (newNames.isNotEmpty()) {
+                        mediaFileNames = mediaFileNames + newNames
+                        if (!isDeleted && (titleText.trim().isNotBlank() || bodyText.trim().isNotBlank() || mediaFileNames.isNotEmpty())) {
+                            onSave(stableNoteId, titleText.trim(), bodyText.trim(), noteColor, isPinned, bookId, isBodyHidden, mediaFilesString())
+                        }
                     }
                 }
             }
+        } catch (t: Throwable) {
+            t.printStackTrace()
         }
     }
 
@@ -176,6 +232,7 @@ fun EditorScreen(
     }
 
     Scaffold(
+        modifier = Modifier.sharedElementTransition("note-$stableNoteId"),
         containerColor = backgroundColor,
         topBar = {
             TopAppBar(
@@ -242,7 +299,19 @@ fun EditorScreen(
                         Icon(Icons.Default.Palette, contentDescription = "Color", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     IconButton(onClick = { 
-                        imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) 
+                        try {
+                            if (ActivityResultContracts.PickVisualMedia.isPhotoPickerAvailable(context)) {
+                                imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            } else {
+                                fallbackImagePickerLauncher.launch("image/*")
+                            }
+                        } catch (t: Throwable) {
+                            try {
+                                fallbackImagePickerLauncher.launch("image/*")
+                            } catch (t2: Throwable) {
+                                t2.printStackTrace()
+                            }
+                        }
                     }) {
                         Icon(
                             Icons.Default.AttachFile,
@@ -342,7 +411,7 @@ fun EditorScreen(
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(mediaFileNames) { fileName ->
+                    items(mediaFileNames, key = { it }) { fileName ->
                         Box(
                             modifier = Modifier
                                 .size(80.dp)
