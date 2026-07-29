@@ -1,3 +1,5 @@
+import java.util.Base64
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -27,7 +29,7 @@ android {
                 val keystoreFile = file("keystore.jks")
                 // Eliminar posibles saltos de línea/espacios antes de decodificar
                 val cleanBase64 = keystoreBase64.replace("\\s".toRegex(), "")
-                keystoreFile.writeBytes(java.util.Base64.getDecoder().decode(cleanBase64))
+                keystoreFile.writeBytes(Base64.getDecoder().decode(cleanBase64))
                 
                 storeFile = keystoreFile
                 storePassword = keystorePassword
